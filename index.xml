@@ -28,6 +28,42 @@
 &lt;h2 id="bugfix">Bugfix:&lt;/h2>
 &lt;ul>
 &lt;li>Prevent connection pool from being overridden.&lt;/li>
+&lt;/ul></description></item><item><title>Blog: Release v0.0.5</title><link>/blog/2021/09/26/release-v0.0.5/</link><pubDate>Sun, 26 Sep 2021 00:00:00 +0000</pubDate><guid>/blog/2021/09/26/release-v0.0.5/</guid><description>
+&lt;h2 id="feature">Feature:&lt;/h2>
+&lt;ul>
+&lt;li>Add default ErrorHandler to wrap remote error when no ErrorHandler is specified.&lt;/li>
+&lt;li>Backward metainfo is supported.&lt;/li>
+&lt;li>JSON generic call is supported. Usage guide: &lt;a href="https://www.cloudwego.io/docs/tutorials/advanced-feature/generic_call/#4-json-mapping-generic-call">link&lt;/a>.&lt;/li>
+&lt;/ul>
+&lt;h2 id="improvement">Improvement:&lt;/h2>
+&lt;ul>
+&lt;li>Use new netpoll API to improve throughput and reduce latency for mux.&lt;/li>
+&lt;li>Backward and forward metainfo is supported for mux.&lt;/li>
+&lt;li>Client will use RPCTimeout middleware when necessary.&lt;/li>
+&lt;li>Add validity verification of idle connection in ConnecitonPool.&lt;/li>
+&lt;li>QPS limiter token will be reset when QPS limit updates.&lt;/li>
+&lt;li>Reduce the deviation of QPS Limiter.&lt;/li>
+&lt;/ul>
+&lt;h2 id="bugfix">Bugfix:&lt;/h2>
+&lt;ul>
+&lt;li>Fix WithExitWaitTime won&amp;rsquo;t set exit wait time correctly.&lt;/li>
+&lt;li>Fix goroutine leak when update interval of QPS limiter.&lt;/li>
+&lt;li>Use actual listen address to build registry info.&lt;/li>
+&lt;/ul>
+&lt;h2 id="tool">Tool:&lt;/h2>
+&lt;ul>
+&lt;li>Fix code generating error when no stream method in protobuf file.&lt;/li>
+&lt;/ul>
+&lt;h2 id="docs">Docs:&lt;/h2>
+&lt;ul>
+&lt;li>English is available for README and all other documents.&lt;/li>
+&lt;li>Guide for generic call. &lt;a href="https://github.com/cloudwego/kitex/blob/develop/docs/guide/advanced-features/generic_call.md">English&lt;/a> | &lt;a href="https://github.com/cloudwego/kitex/blob/develop/docs/guide/advanced-features/generic_call_cn.md">中文&lt;/a>&lt;/li>
+&lt;li>Landscape and Roadmap in README.&lt;/li>
+&lt;/ul>
+&lt;h2 id="dependency-change">Dependency Change:&lt;/h2>
+&lt;ul>
+&lt;li>github.com/cloudwego/netpoll: v0.0.3 -&amp;gt; v0.0.4&lt;/li>
+&lt;li>github.com/bytedance/gopkg: v0.0.0-20210709064845-3c00f9323f09 -&amp;gt; v0.0.0-20210910103821-e4efae9c17c3&lt;/li>
 &lt;/ul></description></item><item><title>Blog: Release v0.0.4</title><link>/blog/2021/08/26/release-v0.0.4/</link><pubDate>Thu, 26 Aug 2021 00:00:00 +0000</pubDate><guid>/blog/2021/08/26/release-v0.0.4/</guid><description>
 &lt;h2 id="improvement">Improvement:&lt;/h2>
 &lt;ul>
