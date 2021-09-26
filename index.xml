@@ -28,6 +28,36 @@
 &lt;h2 id="bugfix">Bugfix:&lt;/h2>
 &lt;ul>
 &lt;li>Prevent connection pool from being overridden.&lt;/li>
+&lt;/ul></description></item><item><title>Blog: Release v0.0.4</title><link>/blog/2021/08/26/release-v0.0.4/</link><pubDate>Thu, 26 Aug 2021 00:00:00 +0000</pubDate><guid>/blog/2021/08/26/release-v0.0.4/</guid><description>
+&lt;h2 id="improvement">Improvement:&lt;/h2>
+&lt;ul>
+&lt;li>Make transMetaHandler executed before customized boundHandlers to ensure the customized boundHandlers could get metainfo.&lt;/li>
+&lt;li>TransError uses internal error typeID if exist.&lt;/li>
+&lt;/ul>
+&lt;h2 id="bugfix">Bugfix:&lt;/h2>
+&lt;ul>
+&lt;li>Not reset stats level when clear RPCInfo in netpollmux to fix metric missing bug when use netpollmux.&lt;/li>
+&lt;li>Remove stale addresses in long pool.&lt;/li>
+&lt;li>Add an EOF condition to eliminate a redundant warning.&lt;/li>
+&lt;li>Modify error types check of service circuit breaker to fix the bug that fuse cannot be triggered.&lt;/li>
+&lt;/ul>
+&lt;h2 id="tool">Tool:&lt;/h2>
+&lt;ul>
+&lt;li>Adjust protobuf generated code of unary to support both Kitex Protobuf and gRPC.&lt;/li>
+&lt;li>Upgrade version of thriftgo to fix golint style.&lt;/li>
+&lt;li>Fix typo in thrift generated code.&lt;/li>
+&lt;li>Fix a bug that streaming generated code missing transport option.&lt;/li>
+&lt;/ul>
+&lt;h2 id="docs">Docs:&lt;/h2>
+&lt;ul>
+&lt;li>Add Golang setup section and Golang version requirement&lt;/li>
+&lt;li>Some docs are updated.&lt;/li>
+&lt;li>Add some English documents.&lt;/li>
+&lt;/ul>
+&lt;h2 id="dependency-change">Dependency Change:&lt;/h2>
+&lt;ul>
+&lt;li>Thriftgo: v0.0.2-0.20210726073420-0145861fcd04 -&amp;gt; v0.1.2&lt;/li>
+&lt;li>Netpoll: v0.0.2 -&amp;gt; v0.0.3&lt;/li>
 &lt;/ul></description></item><item><title>Blog: Release v0.0.5</title><link>/blog/2021/09/26/release-v0.0.5/</link><pubDate>Sun, 26 Sep 2021 00:00:00 +0000</pubDate><guid>/blog/2021/09/26/release-v0.0.5/</guid><description>
 &lt;h2 id="feature">Feature:&lt;/h2>
 &lt;ul>
@@ -64,36 +94,6 @@
 &lt;ul>
 &lt;li>github.com/cloudwego/netpoll: v0.0.3 -&amp;gt; v0.0.4&lt;/li>
 &lt;li>github.com/bytedance/gopkg: v0.0.0-20210709064845-3c00f9323f09 -&amp;gt; v0.0.0-20210910103821-e4efae9c17c3&lt;/li>
-&lt;/ul></description></item><item><title>Blog: Release v0.0.4</title><link>/blog/2021/08/26/release-v0.0.4/</link><pubDate>Thu, 26 Aug 2021 00:00:00 +0000</pubDate><guid>/blog/2021/08/26/release-v0.0.4/</guid><description>
-&lt;h2 id="improvement">Improvement:&lt;/h2>
-&lt;ul>
-&lt;li>Make transMetaHandler executed before customized boundHandlers to ensure the customized boundHandlers could get metainfo.&lt;/li>
-&lt;li>TransError uses internal error typeID if exist.&lt;/li>
-&lt;/ul>
-&lt;h2 id="bugfix">Bugfix:&lt;/h2>
-&lt;ul>
-&lt;li>Not reset stats level when clear RPCInfo in netpollmux to fix metric missing bug when use netpollmux.&lt;/li>
-&lt;li>Remove stale addresses in long pool.&lt;/li>
-&lt;li>Add an EOF condition to eliminate a redundant warning.&lt;/li>
-&lt;li>Modify error types check of service circuit breaker to fix the bug that fuse cannot be triggered.&lt;/li>
-&lt;/ul>
-&lt;h2 id="tool">Tool:&lt;/h2>
-&lt;ul>
-&lt;li>Adjust protobuf generated code of unary to support both Kitex Protobuf and gRPC.&lt;/li>
-&lt;li>Upgrade version of thriftgo to fix golint style.&lt;/li>
-&lt;li>Fix typo in thrift generated code.&lt;/li>
-&lt;li>Fix a bug that streaming generated code missing transport option.&lt;/li>
-&lt;/ul>
-&lt;h2 id="docs">Docs:&lt;/h2>
-&lt;ul>
-&lt;li>Add Golang setup section and Golang version requirement&lt;/li>
-&lt;li>Some docs are updated.&lt;/li>
-&lt;li>Add some English documents.&lt;/li>
-&lt;/ul>
-&lt;h2 id="dependency-change">Dependency Change:&lt;/h2>
-&lt;ul>
-&lt;li>Thriftgo: v0.0.2-0.20210726073420-0145861fcd04 -&amp;gt; v0.1.2&lt;/li>
-&lt;li>Netpoll: v0.0.2 -&amp;gt; v0.0.3&lt;/li>
 &lt;/ul></description></item><item><title>Blog: CloudWeGo Open Source Announcement</title><link>/blog/2021/09/13/cloudwego-open-source-announcement/</link><pubDate>Mon, 13 Sep 2021 00:00:00 +0000</pubDate><guid>/blog/2021/09/13/cloudwego-open-source-announcement/</guid><description>
 &lt;h2 id="background">Background&lt;/h2>
 &lt;p>ByteDance is proud to announce the launch of open source software &lt;a href="https://github.com/cloudwego">CloudWeGo&lt;/a>. Focusing on microservice communication and governance, it offers high performance, strong extensibility, and high reliability which enables quick construction of an enterprise-level cloud native architecture.&lt;/p>
