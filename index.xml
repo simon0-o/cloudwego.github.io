@@ -87,7 +87,7 @@
 &lt;h2 id="docs">Docs:&lt;/h2>
 &lt;ul>
 &lt;li>English is available for README and all other documents.&lt;/li>
-&lt;li>Guide for generic call. &lt;a href="https://github.com/cloudwego/kitex/blob/develop/docs/guide/advanced-features/generic_call.md">English&lt;/a> | &lt;a href="https://github.com/cloudwego/kitex/blob/develop/docs/guide/advanced-features/generic_call_cn.md">中文&lt;/a>&lt;/li>
+&lt;li>Guide for generic call. &lt;a href="https://www.cloudwego.io/docs/tutorials/advanced-feature/generic_call">English&lt;/a> | &lt;a href="https://www.cloudwego.io/zh/docs/tutorials/advanced-features/generic_call/">中文&lt;/a>&lt;/li>
 &lt;li>Landscape and Roadmap in README.&lt;/li>
 &lt;/ul>
 &lt;h2 id="dependency-change">Dependency Change:&lt;/h2>
