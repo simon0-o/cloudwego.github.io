@@ -1,34 +1,4 @@
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>CloudWeGo – CloudWeGo</title><link>/</link><description>Recent content on CloudWeGo</description><generator>Hugo -- gohugo.io</generator><atom:link href="/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: Kitex Release v0.0.1</title><link>/blog/2021/07/12/kitex-release-v0.0.1/</link><pubDate>Mon, 12 Jul 2021 00:00:00 +0000</pubDate><guid>/blog/2021/07/12/kitex-release-v0.0.1/</guid><description>
-&lt;p>Kitex project initialization.&lt;/p></description></item><item><title>Blog: Kitex Release v0.0.2</title><link>/blog/2021/07/30/kitex-release-v0.0.2/</link><pubDate>Fri, 30 Jul 2021 00:00:00 +0000</pubDate><guid>/blog/2021/07/30/kitex-release-v0.0.2/</guid><description>
-&lt;h2 id="improvement">Improvement:&lt;/h2>
-&lt;ul>
-&lt;li>Kitex now disables all stats to improve performance when no tracer is provided.&lt;/li>
-&lt;li>The Kitex client now will reuse connections by default.&lt;/li>
-&lt;/ul>
-&lt;h2 id="bugfix">Bugfix:&lt;/h2>
-&lt;ul>
-&lt;li>A nil-pointer bug in lbcache has been fixed.&lt;/li>
-&lt;li>A data-race issue in the retry(backup request) is fixed.&lt;/li>
-&lt;/ul>
-&lt;h2 id="tool">Tool:&lt;/h2>
-&lt;ul>
-&lt;li>The kitex tool no longer generates a default config file.&lt;/li>
-&lt;li>The kitex tool now uses the latest API of thriftgo which fixes several bad corner cases in code generation.&lt;/li>
-&lt;li>The kitex tool now checks the existence of the go command instead of assuming it. Thanks to @anqiansong&lt;/li>
-&lt;/ul>
-&lt;h2 id="docs">Docs:&lt;/h2>
-&lt;ul>
-&lt;li>
-&lt;p>We have updated some documentations in this version.&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Several lint issues and typos are fixed thanks to @rleungx @Huangxuny1 @JeffreyBool.&lt;/p>
-&lt;/li>
-&lt;/ul></description></item><item><title>Blog: Kitex Release v0.0.3</title><link>/blog/2021/08/01/kitex-release-v0.0.3/</link><pubDate>Sun, 01 Aug 2021 00:00:00 +0000</pubDate><guid>/blog/2021/08/01/kitex-release-v0.0.3/</guid><description>
-&lt;h2 id="bugfix">Bugfix:&lt;/h2>
-&lt;ul>
-&lt;li>Prevent connection pool from being overridden.&lt;/li>
-&lt;/ul></description></item><item><title>Blog: Netpoll Release v0.0.4</title><link>/blog/2021/09/16/netpoll-release-v0.0.4/</link><pubDate>Thu, 16 Sep 2021 00:00:00 +0000</pubDate><guid>/blog/2021/09/16/netpoll-release-v0.0.4/</guid><description>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>CloudWeGo – CloudWeGo</title><link>/</link><description>Recent content on CloudWeGo</description><generator>Hugo -- gohugo.io</generator><atom:link href="/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: Netpoll Release v0.0.4</title><link>/blog/2021/09/16/netpoll-release-v0.0.4/</link><pubDate>Thu, 16 Sep 2021 00:00:00 +0000</pubDate><guid>/blog/2021/09/16/netpoll-release-v0.0.4/</guid><description>
 &lt;h2 id="improvement">Improvement:&lt;/h2>
 &lt;ul>
 &lt;li>Support TCP_NODELAY by default&lt;/li>
@@ -43,36 +13,6 @@
 &lt;h2 id="bugfix">Bugfix:&lt;/h2>
 &lt;ul>
 &lt;li>Set leftover wait read size&lt;/li>
-&lt;/ul></description></item><item><title>Blog: Kitex Release v0.0.4</title><link>/blog/2021/08/26/kitex-release-v0.0.4/</link><pubDate>Thu, 26 Aug 2021 00:00:00 +0000</pubDate><guid>/blog/2021/08/26/kitex-release-v0.0.4/</guid><description>
-&lt;h2 id="improvement">Improvement:&lt;/h2>
-&lt;ul>
-&lt;li>Make transMetaHandler executed before customized boundHandlers to ensure the customized boundHandlers could get metainfo.&lt;/li>
-&lt;li>TransError uses internal error typeID if exist.&lt;/li>
-&lt;/ul>
-&lt;h2 id="bugfix">Bugfix:&lt;/h2>
-&lt;ul>
-&lt;li>Not reset stats level when clear RPCInfo in netpollmux to fix metric missing bug when use netpollmux.&lt;/li>
-&lt;li>Remove stale addresses in long pool.&lt;/li>
-&lt;li>Add an EOF condition to eliminate a redundant warning.&lt;/li>
-&lt;li>Modify error types check of service circuit breaker to fix the bug that fuse cannot be triggered.&lt;/li>
-&lt;/ul>
-&lt;h2 id="tool">Tool:&lt;/h2>
-&lt;ul>
-&lt;li>Adjust protobuf generated code of unary to support both Kitex Protobuf and gRPC.&lt;/li>
-&lt;li>Upgrade version of thriftgo to fix golint style.&lt;/li>
-&lt;li>Fix typo in thrift generated code.&lt;/li>
-&lt;li>Fix a bug that streaming generated code missing transport option.&lt;/li>
-&lt;/ul>
-&lt;h2 id="docs">Docs:&lt;/h2>
-&lt;ul>
-&lt;li>Add Golang setup section and Golang version requirement&lt;/li>
-&lt;li>Some docs are updated.&lt;/li>
-&lt;li>Add some English documents.&lt;/li>
-&lt;/ul>
-&lt;h2 id="dependency-change">Dependency Change:&lt;/h2>
-&lt;ul>
-&lt;li>Thriftgo: v0.0.2-0.20210726073420-0145861fcd04 -&amp;gt; v0.1.2&lt;/li>
-&lt;li>Netpoll: v0.0.2 -&amp;gt; v0.0.3&lt;/li>
 &lt;/ul></description></item><item><title>Blog: Kitex Release v0.0.5</title><link>/blog/2021/09/26/kitex-release-v0.0.5/</link><pubDate>Sun, 26 Sep 2021 00:00:00 +0000</pubDate><guid>/blog/2021/09/26/kitex-release-v0.0.5/</guid><description>
 &lt;h2 id="feature">Feature:&lt;/h2>
 &lt;ul>
@@ -183,4 +123,64 @@
 &lt;p>Following initial feedback, users have shown a stronger demand for Protobuf. Although Kitex supports multiple protocols, the internal RPC communication protocol of Bytedance is Thrift. Protobuf, Kitex Protobuf or compatibility with gRPC is supported only to fulfill the needs of a small number of internal users, so performance [for Protobuf] has not been optimized yet. In terms of code generation, we have not made any optimizations, and currently utilize Protobuf&amp;rsquo;s official binary directly.&lt;/p>
 &lt;p>Gogo/protobuf is an excellent open source library that optimizes Protobuf serialization performance based on generated code, but unfortunately the library is currently out of maintenance, which is why Kitex did not choose gogo.
 In order to meet the growing needs of developers, we are planning to carry out Kitex&amp;rsquo;s performance optimization for Protobuf support.&lt;/p>
-&lt;p>You are welcome to submit issues and PRs to build CloudWeGo together. We are excited for more developers to join, and also look forward to CloudWeGo helping more and more companies quickly build cloud-native architectures. If any corporate customers want to employ CloudWeGo in your internal projects, we can provide technical support. Feel free to raise an issue in &lt;a href="https://github.com/cloudwego">Github&lt;/a> if you have any questions.&lt;/p></description></item></channel></rss>
+&lt;p>You are welcome to submit issues and PRs to build CloudWeGo together. We are excited for more developers to join, and also look forward to CloudWeGo helping more and more companies quickly build cloud-native architectures. If any corporate customers want to employ CloudWeGo in your internal projects, we can provide technical support. Feel free to raise an issue in &lt;a href="https://github.com/cloudwego">Github&lt;/a> if you have any questions.&lt;/p></description></item><item><title>Blog: Kitex Release v0.0.4</title><link>/blog/2021/08/26/kitex-release-v0.0.4/</link><pubDate>Thu, 26 Aug 2021 00:00:00 +0000</pubDate><guid>/blog/2021/08/26/kitex-release-v0.0.4/</guid><description>
+&lt;h2 id="improvement">Improvement:&lt;/h2>
+&lt;ul>
+&lt;li>Make transMetaHandler executed before customized boundHandlers to ensure the customized boundHandlers could get metainfo.&lt;/li>
+&lt;li>TransError uses internal error typeID if exist.&lt;/li>
+&lt;/ul>
+&lt;h2 id="bugfix">Bugfix:&lt;/h2>
+&lt;ul>
+&lt;li>Not reset stats level when clear RPCInfo in netpollmux to fix metric missing bug when use netpollmux.&lt;/li>
+&lt;li>Remove stale addresses in long pool.&lt;/li>
+&lt;li>Add an EOF condition to eliminate a redundant warning.&lt;/li>
+&lt;li>Modify error types check of service circuit breaker to fix the bug that fuse cannot be triggered.&lt;/li>
+&lt;/ul>
+&lt;h2 id="tool">Tool:&lt;/h2>
+&lt;ul>
+&lt;li>Adjust protobuf generated code of unary to support both Kitex Protobuf and gRPC.&lt;/li>
+&lt;li>Upgrade version of thriftgo to fix golint style.&lt;/li>
+&lt;li>Fix typo in thrift generated code.&lt;/li>
+&lt;li>Fix a bug that streaming generated code missing transport option.&lt;/li>
+&lt;/ul>
+&lt;h2 id="docs">Docs:&lt;/h2>
+&lt;ul>
+&lt;li>Add Golang setup section and Golang version requirement&lt;/li>
+&lt;li>Some docs are updated.&lt;/li>
+&lt;li>Add some English documents.&lt;/li>
+&lt;/ul>
+&lt;h2 id="dependency-change">Dependency Change:&lt;/h2>
+&lt;ul>
+&lt;li>Thriftgo: v0.0.2-0.20210726073420-0145861fcd04 -&amp;gt; v0.1.2&lt;/li>
+&lt;li>Netpoll: v0.0.2 -&amp;gt; v0.0.3&lt;/li>
+&lt;/ul></description></item><item><title>Blog: Kitex Release v0.0.3</title><link>/blog/2021/08/01/kitex-release-v0.0.3/</link><pubDate>Sun, 01 Aug 2021 00:00:00 +0000</pubDate><guid>/blog/2021/08/01/kitex-release-v0.0.3/</guid><description>
+&lt;h2 id="bugfix">Bugfix:&lt;/h2>
+&lt;ul>
+&lt;li>Prevent connection pool from being overridden.&lt;/li>
+&lt;/ul></description></item><item><title>Blog: Kitex Release v0.0.2</title><link>/blog/2021/07/30/kitex-release-v0.0.2/</link><pubDate>Fri, 30 Jul 2021 00:00:00 +0000</pubDate><guid>/blog/2021/07/30/kitex-release-v0.0.2/</guid><description>
+&lt;h2 id="improvement">Improvement:&lt;/h2>
+&lt;ul>
+&lt;li>Kitex now disables all stats to improve performance when no tracer is provided.&lt;/li>
+&lt;li>The Kitex client now will reuse connections by default.&lt;/li>
+&lt;/ul>
+&lt;h2 id="bugfix">Bugfix:&lt;/h2>
+&lt;ul>
+&lt;li>A nil-pointer bug in lbcache has been fixed.&lt;/li>
+&lt;li>A data-race issue in the retry(backup request) is fixed.&lt;/li>
+&lt;/ul>
+&lt;h2 id="tool">Tool:&lt;/h2>
+&lt;ul>
+&lt;li>The kitex tool no longer generates a default config file.&lt;/li>
+&lt;li>The kitex tool now uses the latest API of thriftgo which fixes several bad corner cases in code generation.&lt;/li>
+&lt;li>The kitex tool now checks the existence of the go command instead of assuming it. Thanks to @anqiansong&lt;/li>
+&lt;/ul>
+&lt;h2 id="docs">Docs:&lt;/h2>
+&lt;ul>
+&lt;li>
+&lt;p>We have updated some documentations in this version.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Several lint issues and typos are fixed thanks to @rleungx @Huangxuny1 @JeffreyBool.&lt;/p>
+&lt;/li>
+&lt;/ul></description></item><item><title>Blog: Kitex Release v0.0.1</title><link>/blog/2021/07/12/kitex-release-v0.0.1/</link><pubDate>Mon, 12 Jul 2021 00:00:00 +0000</pubDate><guid>/blog/2021/07/12/kitex-release-v0.0.1/</guid><description>
+&lt;p>Kitex project initialization.&lt;/p></description></item></channel></rss>
