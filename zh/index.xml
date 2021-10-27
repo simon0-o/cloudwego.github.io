@@ -899,7 +899,7 @@ Nocopy Buffer 相比常见的 bytes、bufio、ringbuffer 等有以下优势：&l
 &lt;h2 id="文档">文档:&lt;/h2>
 &lt;ul>
 &lt;li>提供了英文版的README和其他文档。&lt;/li>
-&lt;li>补充了泛化调用手册： &lt;a href="https://www.cloudwego.io/docs/tutorials/advanced-feature/generic_call/">English&lt;/a> | &lt;a href="https://www.cloudwego.io/zh/docs/tutorials/advanced-features/generic_call/">中文&lt;/a>。&lt;/li>
+&lt;li>补充了泛化调用手册： &lt;a href="https://www.cloudwego.io/docs/tutorials/advanced-feature/generic_call/">English&lt;/a> | &lt;a href="https://www.cloudwego.io/zh/docs/tutorials/advanced-feature/generic_call/">中文&lt;/a>。&lt;/li>
 &lt;li>README 中增加了 landsapce 和 roadmap。&lt;/li>
 &lt;/ul>
 &lt;h2 id="依赖变化">依赖变化:&lt;/h2>
