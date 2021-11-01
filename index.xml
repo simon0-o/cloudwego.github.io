@@ -1,4 +1,628 @@
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>CloudWeGo – CloudWeGo</title><link>/</link><description>Recent content on CloudWeGo</description><generator>Hugo -- gohugo.io</generator><atom:link href="/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: Netpoll Release v0.0.4</title><link>/blog/2021/09/16/netpoll-release-v0.0.4/</link><pubDate>Thu, 16 Sep 2021 00:00:00 +0000</pubDate><guid>/blog/2021/09/16/netpoll-release-v0.0.4/</guid><description>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>CloudWeGo – CloudWeGo</title><link>/</link><description>Recent content on CloudWeGo</description><generator>Hugo -- gohugo.io</generator><atom:link href="/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: Performance Optimization on Kitex</title><link>/blog/2021/09/23/performance-optimization-on-kitex/</link><pubDate>Thu, 23 Sep 2021 00:00:00 +0000</pubDate><guid>/blog/2021/09/23/performance-optimization-on-kitex/</guid><description>
+&lt;h2 id="preface">Preface&lt;/h2>
+&lt;p>Kitex is the next generation high-performance and extensible Go RPC framework developed by Bytedance Service Framework Team. Compared with other RPC frameworks, in addition to its rich features for service governance, it has the following characteristics: Integrated with the in-house developed network library - Netpoll; Supports multiple Message Protocols (Thrift, Protobuf) and Interactive Models (Ping-Pong, Oneway, Streaming); Provides a more flexible and extensible code generator.&lt;/p>
+&lt;p>Currently, Kitex has been widely used by the major lines of business in ByteDance, and statistics shows that the number of service access is up to 8K. We&amp;rsquo;ve been continuously optimizing Kitex&amp;rsquo;s performance since its launch. This article will share our work on optimizing Netpoll and serialization.&lt;/p>
+&lt;h2 id="optimization-of-the-network-library---netpoll">Optimization of the Network Library - Netpoll&lt;/h2>
+&lt;p>Netpoll, the self-developed network library based on Epoll. Compared with the previous version and the go net library, its performance has been significantly improved. Test results indicated that compared with the last version (2020.05), the latest version (2020.12) has ↑30% throughput capacity, ↓ 25% AVG latency, and ↓67% TP99 . Its performance is far better than the Go Net library. Below, we&amp;rsquo;ll share two solutions that can significantly improve its performance.&lt;/p>
+&lt;h3 id="optimizing-scheduling-delays-when-calling-epoll_wait">Optimizing Scheduling Delays When Calling &amp;ldquo;epoll_wait&amp;rdquo;&lt;/h3>
+&lt;p>When Netpoll was newly released, it encountered the problem of low AVG latency but high TP99. Through our research and analysis on &amp;ldquo;epoll_wait&amp;rdquo;, we found that such a problem could be mitigated by integrating &amp;ldquo;polling&amp;rdquo; and &amp;ldquo;event trigger&amp;rdquo;. With such improvements in scheduling strategy, the latency can be reduced considerably.&lt;/p>
+&lt;p>Let&amp;rsquo;s have a look at the &amp;ldquo;syscall.EpollWait&amp;rdquo; method provided by Go first:&lt;/p>
+&lt;div class="highlight">&lt;pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-go" data-lang="go">&lt;span style="color:#204a87;font-weight:bold">func&lt;/span> &lt;span style="color:#000">EpollWait&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">epfd&lt;/span> &lt;span style="color:#204a87;font-weight:bold">int&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">events&lt;/span> &lt;span style="color:#000;font-weight:bold">[]&lt;/span>&lt;span style="color:#000">EpollEvent&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">msec&lt;/span> &lt;span style="color:#204a87;font-weight:bold">int&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">n&lt;/span> &lt;span style="color:#204a87;font-weight:bold">int&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">err&lt;/span> &lt;span style="color:#204a87;font-weight:bold">error&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span>
+&lt;/code>&lt;/pre>&lt;/div>&lt;p>Three parameters are provided here, they represent &amp;ldquo;epoll fd&amp;rdquo;, “callback events”, and &amp;ldquo;milliseconds to wait&amp;rdquo; respectively. Only &amp;ldquo;msec&amp;rdquo; is dynamic.&lt;/p>
+&lt;p>Normally, we would set &amp;ldquo;msec = -1&amp;rdquo; when we are actively calling &amp;ldquo;EpollWait&amp;rdquo;, as we want to wait for the event infinitely. In fact, many open source net libraries were also using it in this way. But our research showed that setting &amp;ldquo;msec =-1&amp;rdquo; was not the optimal solution.&lt;/p>
+&lt;p>The kernel source (below) of &amp;ldquo;epoll_wait&amp;rdquo; shows that setting &amp;ldquo;msec = -1&amp;rdquo; arises extra &amp;ldquo;fetch_events&amp;rdquo; checks than setting &amp;ldquo;msec = 0&amp;rdquo;, and therefore consumes more time.&lt;/p>
+&lt;div class="highlight">&lt;pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-go" data-lang="go">&lt;span style="color:#000">static&lt;/span> &lt;span style="color:#204a87;font-weight:bold">int&lt;/span> &lt;span style="color:#000">ep_poll&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#204a87;font-weight:bold">struct&lt;/span> &lt;span style="color:#000">eventpoll&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">*&lt;/span>&lt;span style="color:#000">ep&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#204a87;font-weight:bold">struct&lt;/span> &lt;span style="color:#000">epoll_event&lt;/span> &lt;span style="color:#000">__user&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">*&lt;/span>&lt;span style="color:#000">events&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span>
+&lt;span style="color:#204a87;font-weight:bold">int&lt;/span> &lt;span style="color:#000">maxevents&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">long&lt;/span> &lt;span style="color:#000">timeout&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span>
+&lt;span style="color:#000;font-weight:bold">{&lt;/span>
+&lt;span style="color:#ce5c00;font-weight:bold">...&lt;/span>
+&lt;span style="color:#204a87;font-weight:bold">if&lt;/span> &lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">timeout&lt;/span> &lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">0&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>
+&lt;span style="color:#ce5c00;font-weight:bold">...&lt;/span>
+&lt;span style="color:#000;font-weight:bold">}&lt;/span> &lt;span style="color:#204a87;font-weight:bold">else&lt;/span> &lt;span style="color:#204a87;font-weight:bold">if&lt;/span> &lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">timeout&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">==&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">0&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>
+&lt;span style="color:#ce5c00;font-weight:bold">...&lt;/span>
+&lt;span style="color:#204a87;font-weight:bold">goto&lt;/span> &lt;span style="color:#000">send_events&lt;/span>&lt;span style="color:#000;font-weight:bold">;&lt;/span>
+&lt;span style="color:#000;font-weight:bold">}&lt;/span>
+&lt;span style="color:#000">fetch_events&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>
+&lt;span style="color:#ce5c00;font-weight:bold">...&lt;/span>
+&lt;span style="color:#204a87;font-weight:bold">if&lt;/span> &lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">eavail&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span>
+&lt;span style="color:#204a87;font-weight:bold">goto&lt;/span> &lt;span style="color:#000">send_events&lt;/span>&lt;span style="color:#000;font-weight:bold">;&lt;/span>
+&lt;span style="color:#000">send_events&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>
+&lt;span style="color:#ce5c00;font-weight:bold">...&lt;/span>
+&lt;/code>&lt;/pre>&lt;/div>&lt;p>The Benchmark shows that when an event is triggered, setting &amp;ldquo;msec = 0&amp;rdquo; is 18% faster than setting &amp;ldquo;msec = -1&amp;rdquo;. Thus, when triggering complex events, setting &amp;ldquo;msec = 0&amp;rdquo; is obviously a better choice.&lt;/p>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:left">Benchmark&lt;/th>
+&lt;th style="text-align:left">time/op&lt;/th>
+&lt;th style="text-align:left">bytes/op&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:left">BenchmarkEpollWait, msec=0&lt;/td>
+&lt;td style="text-align:left">270 ns/op&lt;/td>
+&lt;td style="text-align:left">0 B/op&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">BenchmarkEpollWait, msec=-1&lt;/td>
+&lt;td style="text-align:left">328 ns/op&lt;/td>
+&lt;td style="text-align:left">0 B/op&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">EpollWait Delta&lt;/td>
+&lt;td style="text-align:left">-17.68%&lt;/td>
+&lt;td style="text-align:left">~&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;p>However, setting &amp;ldquo;msec = 0&amp;rdquo; would lead to infinite polling when no event is triggered, consumes lots of resources.&lt;/p>
+&lt;p>Taking the previously mentioned factors into account, it&amp;rsquo;s preferred to set &amp;ldquo;msec = 0&amp;rdquo; when an event is triggered and &amp;ldquo;msec = -1&amp;rdquo; when no event is triggered to reduce polling. The pseudocode is demonstrated as follow:&lt;/p>
+&lt;div class="highlight">&lt;pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-go" data-lang="go">&lt;span style="color:#204a87;font-weight:bold">var&lt;/span> &lt;span style="color:#000">msec&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">-&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">1&lt;/span>
+&lt;span style="color:#204a87;font-weight:bold">for&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>
+&lt;span style="color:#000">n&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">err&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> &lt;span style="color:#000">syscall&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">EpollWait&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">epfd&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">events&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">msec&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span>
+&lt;span style="color:#204a87;font-weight:bold">if&lt;/span> &lt;span style="color:#000">n&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">&amp;lt;=&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">0&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>
+&lt;span style="color:#000">msec&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">-&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">1&lt;/span>
+&lt;span style="color:#204a87;font-weight:bold">continue&lt;/span>
+&lt;span style="color:#000;font-weight:bold">}&lt;/span>
+&lt;span style="color:#000">msec&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">0&lt;/span>
+&lt;span style="color:#ce5c00;font-weight:bold">...&lt;/span>
+&lt;span style="color:#000;font-weight:bold">}&lt;/span>
+&lt;/code>&lt;/pre>&lt;/div>&lt;p>Neverthless, our experiments have proved that the improvement is insignificant. Setting &amp;ldquo;msec = 0&amp;rdquo; merely reduces the delay of a single call by 50ns, which is not a considerable improvement. If we want to further reduce latency, adjustment must be made in Go runtime scheduling.
+Thus, let&amp;rsquo;s further explore this issue:
+In the pseudocode above, setting &amp;ldquo;msec= -1&amp;rdquo; with no triggered event, and &amp;ldquo;continue&amp;rdquo; directly will immediately execute &amp;ldquo;EpollWait&amp;rdquo; again. Since there is no triggered event while &amp;ldquo;msec = -1&amp;rdquo;, the current &amp;ldquo;goroutine&amp;rdquo; will block and be switched by &amp;ldquo;P&amp;rdquo; passively. However, it is less efficient, and we can save time if we actively switch &amp;ldquo;goroutine&amp;rdquo; for &amp;ldquo;P&amp;rdquo; before &amp;ldquo;continue&amp;rdquo;. So we modified the above pseudocode as follow:&lt;/p>
+&lt;div class="highlight">&lt;pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-go" data-lang="go">&lt;span style="color:#204a87;font-weight:bold">var&lt;/span> &lt;span style="color:#000">msec&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">-&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">1&lt;/span>
+&lt;span style="color:#204a87;font-weight:bold">for&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>
+&lt;span style="color:#000">n&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">err&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> &lt;span style="color:#000">syscall&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">EpollWait&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">epfd&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">events&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">msec&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span>
+&lt;span style="color:#204a87;font-weight:bold">if&lt;/span> &lt;span style="color:#000">n&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">&amp;lt;=&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">0&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>
+&lt;span style="color:#000">msec&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">-&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">1&lt;/span>
+&lt;span style="color:#000">runtime&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">Gosched&lt;/span>&lt;span style="color:#000;font-weight:bold">()&lt;/span>
+&lt;span style="color:#204a87;font-weight:bold">continue&lt;/span>
+&lt;span style="color:#000;font-weight:bold">}&lt;/span>
+&lt;span style="color:#000">msec&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">0&lt;/span>
+&lt;span style="color:#ce5c00;font-weight:bold">...&lt;/span>
+&lt;span style="color:#000;font-weight:bold">}&lt;/span>
+&lt;/code>&lt;/pre>&lt;/div>&lt;p>The test results of the modified code showed that throughput ↑12% and TP99 ↓64%. The latency was significantly reduced.&lt;/p>
+&lt;h3 id="utilizing-unsafepointer">Utilizing &amp;ldquo;unsafe.Pointer&amp;rdquo;&lt;/h3>
+&lt;p>Through further study of &amp;ldquo;epoll_wait&amp;rdquo;, we find that the &amp;ldquo;syscall.EpollWait&amp;rdquo; published by Go and the &amp;ldquo;epollwait&amp;rdquo; used by &amp;ldquo;runtime&amp;rdquo; are two different versions, as they use different &amp;ldquo;EpollEvent&amp;rdquo;. They are demonstrated as follow:&lt;/p>
+&lt;div class="highlight">&lt;pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-go" data-lang="go">&lt;span style="color:#8f5902;font-style:italic">// @syscall
+&lt;/span>&lt;span style="color:#8f5902;font-style:italic">&lt;/span>&lt;span style="color:#204a87;font-weight:bold">type&lt;/span> &lt;span style="color:#000">EpollEvent&lt;/span> &lt;span style="color:#204a87;font-weight:bold">struct&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>
+&lt;span style="color:#000">Events&lt;/span> &lt;span style="color:#204a87;font-weight:bold">uint32&lt;/span>
+&lt;span style="color:#000">Fd&lt;/span> &lt;span style="color:#204a87;font-weight:bold">int32&lt;/span>
+&lt;span style="color:#000">Pad&lt;/span> &lt;span style="color:#204a87;font-weight:bold">int32&lt;/span>
+&lt;span style="color:#000;font-weight:bold">}&lt;/span>
+&lt;span style="color:#8f5902;font-style:italic">// @runtime
+&lt;/span>&lt;span style="color:#8f5902;font-style:italic">&lt;/span>&lt;span style="color:#204a87;font-weight:bold">type&lt;/span> &lt;span style="color:#000">epollevent&lt;/span> &lt;span style="color:#204a87;font-weight:bold">struct&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>
+&lt;span style="color:#000">events&lt;/span> &lt;span style="color:#204a87;font-weight:bold">uint32&lt;/span>
+&lt;span style="color:#000">data&lt;/span> &lt;span style="color:#000;font-weight:bold">[&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">8&lt;/span>&lt;span style="color:#000;font-weight:bold">]&lt;/span>&lt;span style="color:#204a87;font-weight:bold">byte&lt;/span> &lt;span style="color:#8f5902;font-style:italic">// unaligned uintptr
+&lt;/span>&lt;span style="color:#8f5902;font-style:italic">&lt;/span>&lt;span style="color:#000;font-weight:bold">}&lt;/span>
+&lt;/code>&lt;/pre>&lt;/div>&lt;p>As we can see, the &amp;ldquo;epollevent&amp;rdquo; used by &amp;ldquo;runtime&amp;rdquo; is in its original structure defined by &amp;ldquo;epoll&amp;rdquo; at system layer. The published version warps it and splits &amp;ldquo;epoll_data(epollevent.data)&amp;rdquo; into two fixed fields: &amp;ldquo;Fd&amp;rdquo; and &amp;ldquo;Pad&amp;rdquo;. For &amp;ldquo;runtime&amp;rdquo;, in its source code we found the following logic:&lt;/p>
+&lt;div class="highlight">&lt;pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-go" data-lang="go">&lt;span style="color:#ce5c00;font-weight:bold">*&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">**&lt;/span>&lt;span style="color:#000">pollDesc&lt;/span>&lt;span style="color:#000;font-weight:bold">)(&lt;/span>&lt;span style="color:#000">unsafe&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">Pointer&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">&amp;amp;&lt;/span>&lt;span style="color:#000">ev&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">data&lt;/span>&lt;span style="color:#000;font-weight:bold">))&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> &lt;span style="color:#000">pd&lt;/span>
+&lt;span style="color:#000">pd&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">:=&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">*&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">**&lt;/span>&lt;span style="color:#000">pollDesc&lt;/span>&lt;span style="color:#000;font-weight:bold">)(&lt;/span>&lt;span style="color:#000">unsafe&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">Pointer&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">&amp;amp;&lt;/span>&lt;span style="color:#000">ev&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">data&lt;/span>&lt;span style="color:#000;font-weight:bold">))&lt;/span>
+&lt;/code>&lt;/pre>&lt;/div>&lt;p>Obviously, &amp;ldquo;runtime&amp;rdquo; uses &amp;ldquo;epoll_data(&amp;amp;ev.data)&amp;rdquo; to store a pointer of the &amp;ldquo;fd&amp;rdquo; corresponding structure - &amp;ldquo;(pollDesc)&amp;rdquo; directly. Thus, when an event is triggered, the &amp;ldquo;struct&amp;rdquo; object can be found directly with the corresponding logic being executed. However, the external version can only obtain the warped &amp;ldquo;fd&amp;rdquo; parameters. So it needs to introduce additional &amp;ldquo;Map&amp;rdquo; to manipulate the &amp;ldquo;struct&amp;rdquo; object, and the performance will be diminished.&lt;/p>
+&lt;p>Therefore, we abandoned &amp;ldquo;syscall.EpollWait&amp;rdquo; and designed our own &amp;ldquo;EpollWait&amp;rdquo; call by referring to &amp;ldquo;runtime&amp;rdquo;. We also use &amp;ldquo;unsafe.Pointer&amp;rdquo; to access &amp;ldquo;struct&amp;rdquo; objects. The test results showed that our &amp;ldquo;EpollWait&amp;rdquo; call contributed to ↑10% throughput and ↓10% TP99 , which has significantly improved efficiency.&lt;/p>
+&lt;h2 id="serializationdeserialization-optimization-of-thrift">Serialization/Deserialization Optimization of Thrift&lt;/h2>
+&lt;p>Serialization refers to the process of converting a data structure or object into a binary or textual form. Deserialization is the opposite process. A serialization protocol needs to be agreed during RPC communication. The serialization process is executed before the client sends requests. The bytes are transmitted to the server over the network, and the server will logic-process the bytes to complete an RPC request. Thrift supports &amp;ldquo;Binary&amp;rdquo;, &amp;ldquo;Compact&amp;rdquo;, and &amp;ldquo;JSON&amp;rdquo; serialization protocols. Since &amp;ldquo;Binary&amp;rdquo; is the most common protocol used in Bytedance, we will only discuss about &amp;ldquo;Binary&amp;rdquo; protocol.&lt;/p>
+&lt;p>&amp;ldquo;Binary&amp;rdquo; protocol is &amp;ldquo;TLV&amp;rdquo; (&amp;ldquo;Type&amp;rdquo;, &amp;ldquo;Length&amp;rdquo;, &amp;ldquo;Value&amp;rdquo;) encoded, that is, each field is described using &amp;ldquo;TLV&amp;rdquo; structure. It emphasizes that the &amp;ldquo;Value&amp;rdquo; can also be a &amp;ldquo;TLV&amp;rdquo; structure, where the &amp;ldquo;Type&amp;rdquo; and &amp;ldquo;Length&amp;rdquo; are fixed in length, and the length of &amp;ldquo;Value&amp;rdquo; is determined by the input value of &amp;ldquo;Length&amp;rdquo;. TLV coding structure is simple, clear, and scalable. However, since it requires the input of &amp;ldquo;Type&amp;rdquo; and &amp;ldquo;Length&amp;rdquo;, there is extra memory overhead incurred. It wastes considerable memory especially when most fields are in base types.&lt;/p>
+&lt;p>The performance of serilization and deserialization can be optimized from two dimensions - &amp;ldquo;time&amp;rdquo; &amp;amp; &amp;ldquo;space&amp;rdquo;. To be compatible with the existing &amp;ldquo;binary&amp;rdquo; protocols, optimization in &amp;ldquo;space&amp;rdquo; seems to be infeasible. Improvement can only be made in &amp;ldquo;time&amp;rdquo;, it includes:&lt;/p>
+&lt;ul>
+&lt;li>Reduce the frequency of operations on memory, notably memory allocation and replication. Try to allocate memory proactively to reduce unnecessary time consumption.&lt;/li>
+&lt;li>Reduce the frequency of function calls by adjusting code structure or using &amp;ldquo;inline&amp;rdquo; etc.&lt;/li>
+&lt;/ul>
+&lt;h3 id="research-on-serilization-strategy">Research on Serilization Strategy&lt;/h3>
+&lt;p>Based on &amp;ldquo;go_serialization_benchmarks&amp;rdquo;, we investigated a number of serialization schemes that performed well to guide the optimization of our serialization strategy.&lt;/p>
+&lt;p>Analysis of &amp;ldquo;protobuf&amp;rdquo;, &amp;ldquo;gogoprotobuf&amp;rdquo;, and &amp;ldquo;Cap &amp;lsquo;n Proto&amp;rdquo; has provided us the following results:&lt;/p>
+&lt;ul>
+&lt;li>Considering I/O, the transmitted data is usually compressed in size during online transactions. &amp;ldquo;protobuf&amp;rdquo; uses &amp;ldquo;Varint&amp;rdquo; encoding and has good data compression capabilities in most scenarios.&lt;/li>
+&lt;li>&amp;ldquo;gogoprotobuf&amp;rdquo; uses precomputation to reduce memory allocations and replications during serialization. Thus, it eliminates the cost of system calls, locks and GC arise from memory allocations.&lt;/li>
+&lt;li>&amp;ldquo;Cap &amp;lsquo;n Proto&amp;rdquo; directly operates buffer, which also reduces memory allocations and replications. In addition, it also designs &amp;ldquo;struct pointer&amp;rdquo; in a way that processes fixed-length data and non-fixed-length data separately. Which enables fast processing for fixed-length data.
+For compatibility reasons, it is impossible to change the existing &amp;ldquo;TLV&amp;rdquo; encoding format, so data compression is not feasible. But finding 2 and 3 are inspiring to our optimization work, and in fact we have taken a similar approach.&lt;/li>
+&lt;/ul>
+&lt;h3 id="approaches">Approaches&lt;/h3>
+&lt;h4 id="reducing-operations-on-memory">Reducing Operations on Memory&lt;/h4>
+&lt;p>&lt;strong>Buffer management&lt;/strong>&lt;br>
+Both serialization and deserialization involve copying data from one piece of memory to another. It involves memory allocation and replications. Avoiding memory operations can reduce unnecessary overhead such as system calls, locks, and GC.&lt;/p>
+&lt;p>In fact, Kitex has provided &amp;ldquo;LinkBuffer&amp;rdquo; for buffer management purposes. &amp;ldquo;LinkBuffer&amp;rdquo; is designed with a linked structure and consists of multiple blocks, among which blocks are memory chunks with a fixed size. Object pool is constructed to maintain unoccupied block and support block multiplexing, thus, reduce memory usage and GC.&lt;/p>
+&lt;p>Initially we simply used &amp;ldquo;sync.Pool&amp;rdquo; to multiplex the &amp;ldquo;LinkBufferNode&amp;rdquo; of netpoll, but it didn&amp;rsquo;t significantly contribute to multiplexing in large data package scenarios (large nodes can&amp;rsquo;t be reclaimed or it would cause memory leaking). At present, we have changed our strategy to maintain a group of &amp;ldquo;sync.Pool&amp;rdquo;, and the buffer sizes in each chunk are different. When new blocks are created, it is obtained from the pool with the closest size to the required size, so that the memory can be multiplexed as much as possible. And the test results also proved that it contributed to significant improvement in terms of memory allocation and GC.&lt;/p>
+&lt;p>&lt;strong>Copy-free String / Binary&lt;/strong>&lt;br>
+For some operations, such as video-related services, during its request or return processes, large-size &amp;ldquo;Binary&amp;rdquo; data will be arisen, representing the processed video or image data. Meanwhile, some operations will return large-size &amp;ldquo;String&amp;rdquo; data (such as full-text information, etc.). In this scenario, all the hot spots we see through the flame graph are on the copy of the data, so we thought, can we reduce the frequency of such copies?&lt;/p>
+&lt;p>The answer is positive. Since our underlying buffer is a linked list, it is easy to insert a node in the middle of the list.&lt;/p>
+&lt;p>&lt;img src="/img/blog/buffer-linkerd-list.png" alt="!image">&lt;/p>
+&lt;p>Thus, we have taken a similar approach, when a &amp;ldquo;string&amp;rdquo; or &amp;ldquo;binary&amp;rdquo; data exists during serialization processes. First, split the node&amp;rsquo;s buffer into two segments and then insert the buffer of the &amp;ldquo;string&amp;rdquo; / &amp;ldquo;binary&amp;rdquo; objects in the middle correspondingly. This avoids the copy of large &amp;ldquo;string&amp;rdquo; / &amp;ldquo;binary&amp;rdquo; .&lt;/p>
+&lt;p>Furthermore, a copy will occur if we convert a string to &amp;ldquo;[]byte&amp;rdquo; using &amp;ldquo;[]byte(string)&amp;rdquo;. Because &amp;ldquo;string&amp;rdquo; is immutable and &amp;ldquo;[]byte&amp;rdquo; is mutable in Golang language. &amp;ldquo;unsafe&amp;rdquo; is needed if you don&amp;rsquo;t want to copy during the conversion:&lt;/p>
+&lt;div class="highlight">&lt;pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-go" data-lang="go">&lt;span style="color:#204a87;font-weight:bold">func&lt;/span> &lt;span style="color:#000">StringToSliceByte&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">s&lt;/span> &lt;span style="color:#204a87;font-weight:bold">string&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#000;font-weight:bold">[]&lt;/span>&lt;span style="color:#204a87;font-weight:bold">byte&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>
+&lt;span style="color:#000">l&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">:=&lt;/span> &lt;span style="color:#204a87">len&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">s&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span>
+&lt;span style="color:#204a87;font-weight:bold">return&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">*&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">*&lt;/span>&lt;span style="color:#000;font-weight:bold">[]&lt;/span>&lt;span style="color:#204a87;font-weight:bold">byte&lt;/span>&lt;span style="color:#000;font-weight:bold">)(&lt;/span>&lt;span style="color:#000">unsafe&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">Pointer&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">&amp;amp;&lt;/span>&lt;span style="color:#000">reflect&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">SliceHeader&lt;/span>&lt;span style="color:#000;font-weight:bold">{&lt;/span>
+&lt;span style="color:#000">Data&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">*&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">*&lt;/span>&lt;span style="color:#000">reflect&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">StringHeader&lt;/span>&lt;span style="color:#000;font-weight:bold">)(&lt;/span>&lt;span style="color:#000">unsafe&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">Pointer&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">&amp;amp;&lt;/span>&lt;span style="color:#000">s&lt;/span>&lt;span style="color:#000;font-weight:bold">))).&lt;/span>&lt;span style="color:#000">Data&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span>
+&lt;span style="color:#000">Len&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000">l&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span>
+&lt;span style="color:#000">Cap&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#000">l&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span>
+&lt;span style="color:#000;font-weight:bold">}))&lt;/span>
+&lt;span style="color:#000;font-weight:bold">}&lt;/span>
+&lt;/code>&lt;/pre>&lt;/div>&lt;p>The demonstrated code first takes the address of the string, then gives it a slice byte header, and finally converts the &amp;ldquo;string&amp;rdquo; to &amp;ldquo;[]byte&amp;rdquo; without copying the data. Note that the resulting &amp;ldquo;[]byte&amp;rdquo; is not writable, or the behavior is undefined.&lt;/p>
+&lt;p>&lt;strong>Pre-Calculation&lt;/strong>&lt;br>
+Some services support transmissions of large data package, which incurs considerable serialization / deserialization overhead. Generally, large packets are associated with the large size of the container type. If the buffer can be pre-calculated, some O(n) operations can be reduced to O(1), and further reduce the frequency of function calls. In the case of large data packages, the number of memory allocation can also be greatly reduced, bringing considerable benefits.&lt;/p>
+&lt;ul>
+&lt;li>
+&lt;p>Base types&lt;/p>
+&lt;ul>
+&lt;li>If the container element is defined as base type (bool, byte, i16, i32, i64, double), the total size can be pre-calculated during serialization as its size is fixed, and enough buffer can be allocated at once. The number of &amp;ldquo;malloc&amp;rdquo; operations of O(n) can be reduced to O(1), thus greatly reducing the frequency of &amp;ldquo;malloc&amp;rdquo; operations. Similarly, the number of &amp;ldquo;next&amp;rdquo; operations can be reduced during deserialization.&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>
+&lt;p>Rearrangement of &amp;ldquo;Struct&amp;rdquo; Fields&lt;/p>
+&lt;ul>
+&lt;li>The above optimizations are valid only for container elements that are defined as base types. Can they be optimized for &amp;ldquo;struct&amp;rdquo; elements? The answer is yes.&lt;/li>
+&lt;li>If there are fields of base type in &amp;ldquo;struct&amp;rdquo;, we can pre-calculate the size of these fields, then allocate buffer for these fields in advance during serialization and write these fields in the first order. We can also reduce the frequency of &amp;ldquo;malloc&amp;rdquo;.&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>
+&lt;p>Size calculation&lt;/p>
+&lt;ul>
+&lt;li>The optimization mentioned above is for base types. If you first iterate over all the fields of the request during serialization, you can calculate the size of the entire request, allocate buffer in advance, and directly manipulate buffer during serialization and unsequence, so that the optimization effect can be achieved for non-base types.&lt;/li>
+&lt;li>Define a new &amp;ldquo;codec&amp;rdquo; interface:&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;/ul>
+&lt;div class="highlight">&lt;pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-go" data-lang="go">&lt;span style="color:#204a87;font-weight:bold">type&lt;/span> &lt;span style="color:#000">thriftMsgFastCodec&lt;/span> &lt;span style="color:#204a87;font-weight:bold">interface&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>
+&lt;span style="color:#000">BLength&lt;/span>&lt;span style="color:#000;font-weight:bold">()&lt;/span> &lt;span style="color:#204a87;font-weight:bold">int&lt;/span> &lt;span style="color:#8f5902;font-style:italic">// count length of whole req/resp
+&lt;/span>&lt;span style="color:#8f5902;font-style:italic">&lt;/span> &lt;span style="color:#000">FastWrite&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">buf&lt;/span> &lt;span style="color:#000;font-weight:bold">[]&lt;/span>&lt;span style="color:#204a87;font-weight:bold">byte&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#204a87;font-weight:bold">int&lt;/span>
+&lt;span style="color:#000">FastRead&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">buf&lt;/span> &lt;span style="color:#000;font-weight:bold">[]&lt;/span>&lt;span style="color:#204a87;font-weight:bold">byte&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#204a87;font-weight:bold">int&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#204a87;font-weight:bold">error&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span>
+&lt;span style="color:#000;font-weight:bold">}&lt;/span>
+&lt;/code>&lt;/pre>&lt;/div>&lt;ul>
+&lt;li>Change the &amp;ldquo;Marshal&amp;rdquo; and &amp;ldquo;Unmarshal&amp;rdquo; interfaces accordingly:&lt;/li>
+&lt;/ul>
+&lt;div class="highlight">&lt;pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-go" data-lang="go">&lt;span style="color:#204a87;font-weight:bold">func&lt;/span> &lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">c&lt;/span> &lt;span style="color:#000">thriftCodec&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#000">Marshal&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">ctx&lt;/span> &lt;span style="color:#000">context&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">Context&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">message&lt;/span> &lt;span style="color:#000">remote&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">Message&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">out&lt;/span> &lt;span style="color:#000">remote&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">ByteBuffer&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#204a87;font-weight:bold">error&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>
+&lt;span style="color:#ce5c00;font-weight:bold">...&lt;/span>
+&lt;span style="color:#204a87;font-weight:bold">if&lt;/span> &lt;span style="color:#000">msg&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">ok&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">:=&lt;/span> &lt;span style="color:#000">data&lt;/span>&lt;span style="color:#000;font-weight:bold">.(&lt;/span>&lt;span style="color:#000">thriftMsgFastCodec&lt;/span>&lt;span style="color:#000;font-weight:bold">);&lt;/span> &lt;span style="color:#000">ok&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>
+&lt;span style="color:#000">msgBeginLen&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">:=&lt;/span> &lt;span style="color:#000">bthrift&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">Binary&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">MessageBeginLength&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">methodName&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">thrift&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">TMessageType&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">msgType&lt;/span>&lt;span style="color:#000;font-weight:bold">),&lt;/span> &lt;span style="color:#204a87">int32&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">seqID&lt;/span>&lt;span style="color:#000;font-weight:bold">))&lt;/span>
+&lt;span style="color:#000">msgEndLen&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">:=&lt;/span> &lt;span style="color:#000">bthrift&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">Binary&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">MessageEndLength&lt;/span>&lt;span style="color:#000;font-weight:bold">()&lt;/span>
+&lt;span style="color:#000">buf&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">err&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">:=&lt;/span> &lt;span style="color:#000">out&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">Malloc&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">msgBeginLen&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">+&lt;/span> &lt;span style="color:#000">msg&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">BLength&lt;/span>&lt;span style="color:#000;font-weight:bold">()&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">+&lt;/span> &lt;span style="color:#000">msgEndLen&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span>&lt;span style="color:#8f5902;font-style:italic">// malloc once
+&lt;/span>&lt;span style="color:#8f5902;font-style:italic">&lt;/span> &lt;span style="color:#204a87;font-weight:bold">if&lt;/span> &lt;span style="color:#000">err&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">!=&lt;/span> &lt;span style="color:#204a87;font-weight:bold">nil&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>
+&lt;span style="color:#204a87;font-weight:bold">return&lt;/span> &lt;span style="color:#000">perrors&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">NewProtocolErrorWithMsg&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">fmt&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">Sprintf&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#4e9a06">&amp;#34;thrift marshal, Malloc failed: %s&amp;#34;&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">err&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">Error&lt;/span>&lt;span style="color:#000;font-weight:bold">()))&lt;/span>
+&lt;span style="color:#000;font-weight:bold">}&lt;/span>
+&lt;span style="color:#000">offset&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">:=&lt;/span> &lt;span style="color:#000">bthrift&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">Binary&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">WriteMessageBegin&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">buf&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">methodName&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">thrift&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">TMessageType&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">msgType&lt;/span>&lt;span style="color:#000;font-weight:bold">),&lt;/span> &lt;span style="color:#204a87">int32&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">seqID&lt;/span>&lt;span style="color:#000;font-weight:bold">))&lt;/span>
+&lt;span style="color:#000">offset&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">+=&lt;/span> &lt;span style="color:#000">msg&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">FastWrite&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">buf&lt;/span>&lt;span style="color:#000;font-weight:bold">[&lt;/span>&lt;span style="color:#000">offset&lt;/span>&lt;span style="color:#000;font-weight:bold">:])&lt;/span>
+&lt;span style="color:#000">bthrift&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">Binary&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">WriteMessageEnd&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">buf&lt;/span>&lt;span style="color:#000;font-weight:bold">[&lt;/span>&lt;span style="color:#000">offset&lt;/span>&lt;span style="color:#000;font-weight:bold">:])&lt;/span>
+&lt;span style="color:#204a87;font-weight:bold">return&lt;/span> &lt;span style="color:#204a87;font-weight:bold">nil&lt;/span>
+&lt;span style="color:#000;font-weight:bold">}&lt;/span>
+&lt;span style="color:#ce5c00;font-weight:bold">...&lt;/span>
+&lt;span style="color:#000;font-weight:bold">}&lt;/span>
+&lt;span style="color:#204a87;font-weight:bold">func&lt;/span> &lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">c&lt;/span> &lt;span style="color:#000">thriftCodec&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#000">Unmarshal&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">ctx&lt;/span> &lt;span style="color:#000">context&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">Context&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">message&lt;/span> &lt;span style="color:#000">remote&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">Message&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">in&lt;/span> &lt;span style="color:#000">remote&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">ByteBuffer&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#204a87;font-weight:bold">error&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>
+&lt;span style="color:#ce5c00;font-weight:bold">...&lt;/span>
+&lt;span style="color:#000">data&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">:=&lt;/span> &lt;span style="color:#000">message&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">Data&lt;/span>&lt;span style="color:#000;font-weight:bold">()&lt;/span>
+&lt;span style="color:#204a87;font-weight:bold">if&lt;/span> &lt;span style="color:#000">msg&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">ok&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">:=&lt;/span> &lt;span style="color:#000">data&lt;/span>&lt;span style="color:#000;font-weight:bold">.(&lt;/span>&lt;span style="color:#000">thriftMsgFastCodec&lt;/span>&lt;span style="color:#000;font-weight:bold">);&lt;/span> &lt;span style="color:#000">ok&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">&amp;amp;&amp;amp;&lt;/span> &lt;span style="color:#000">message&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">PayloadLen&lt;/span>&lt;span style="color:#000;font-weight:bold">()&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">!=&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">0&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>
+&lt;span style="color:#000">msgBeginLen&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">:=&lt;/span> &lt;span style="color:#000">bthrift&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">Binary&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">MessageBeginLength&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">methodName&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">msgType&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">seqID&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span>
+&lt;span style="color:#000">buf&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">err&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">:=&lt;/span> &lt;span style="color:#000">tProt&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">next&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">message&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">PayloadLen&lt;/span>&lt;span style="color:#000;font-weight:bold">()&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">-&lt;/span> &lt;span style="color:#000">msgBeginLen&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">-&lt;/span> &lt;span style="color:#000">bthrift&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">Binary&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">MessageEndLength&lt;/span>&lt;span style="color:#000;font-weight:bold">())&lt;/span> &lt;span style="color:#8f5902;font-style:italic">// next once
+&lt;/span>&lt;span style="color:#8f5902;font-style:italic">&lt;/span> &lt;span style="color:#204a87;font-weight:bold">if&lt;/span> &lt;span style="color:#000">err&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">!=&lt;/span> &lt;span style="color:#204a87;font-weight:bold">nil&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>
+&lt;span style="color:#204a87;font-weight:bold">return&lt;/span> &lt;span style="color:#000">remote&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">NewTransError&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">remote&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">PROTOCOL_ERROR&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">err&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">Error&lt;/span>&lt;span style="color:#000;font-weight:bold">())&lt;/span>
+&lt;span style="color:#000;font-weight:bold">}&lt;/span>
+&lt;span style="color:#000">_&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">err&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> &lt;span style="color:#000">msg&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">FastRead&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">buf&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span>
+&lt;span style="color:#204a87;font-weight:bold">if&lt;/span> &lt;span style="color:#000">err&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">!=&lt;/span> &lt;span style="color:#204a87;font-weight:bold">nil&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>
+&lt;span style="color:#204a87;font-weight:bold">return&lt;/span> &lt;span style="color:#000">remote&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">NewTransError&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">remote&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">PROTOCOL_ERROR&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">err&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">Error&lt;/span>&lt;span style="color:#000;font-weight:bold">())&lt;/span>
+&lt;span style="color:#000;font-weight:bold">}&lt;/span>
+&lt;span style="color:#000">err&lt;/span> &lt;span style="color:#000;font-weight:bold">=&lt;/span> &lt;span style="color:#000">tProt&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">ReadMessageEnd&lt;/span>&lt;span style="color:#000;font-weight:bold">()&lt;/span>
+&lt;span style="color:#204a87;font-weight:bold">if&lt;/span> &lt;span style="color:#000">err&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">!=&lt;/span> &lt;span style="color:#204a87;font-weight:bold">nil&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>
+&lt;span style="color:#204a87;font-weight:bold">return&lt;/span> &lt;span style="color:#000">remote&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">NewTransError&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">remote&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">PROTOCOL_ERROR&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">err&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">Error&lt;/span>&lt;span style="color:#000;font-weight:bold">())&lt;/span>
+&lt;span style="color:#000;font-weight:bold">}&lt;/span>
+&lt;span style="color:#000">tProt&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">Recycle&lt;/span>&lt;span style="color:#000;font-weight:bold">()&lt;/span>
+&lt;span style="color:#204a87;font-weight:bold">return&lt;/span> &lt;span style="color:#000">err&lt;/span>
+&lt;span style="color:#000;font-weight:bold">}&lt;/span>
+&lt;span style="color:#ce5c00;font-weight:bold">...&lt;/span>
+&lt;span style="color:#000;font-weight:bold">}&lt;/span>
+&lt;/code>&lt;/pre>&lt;/div>&lt;ul>
+&lt;li>Modify the generated code accordingly:&lt;/li>
+&lt;/ul>
+&lt;div class="highlight">&lt;pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-go" data-lang="go">&lt;span style="color:#204a87;font-weight:bold">func&lt;/span> &lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">p&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">*&lt;/span>&lt;span style="color:#000">Demo&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#000">BLength&lt;/span>&lt;span style="color:#000;font-weight:bold">()&lt;/span> &lt;span style="color:#204a87;font-weight:bold">int&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>
+&lt;span style="color:#000">l&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">:=&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">0&lt;/span>
+&lt;span style="color:#000">l&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">+=&lt;/span> &lt;span style="color:#000">bthrift&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">Binary&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">StructBeginLength&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#4e9a06">&amp;#34;Demo&amp;#34;&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span>
+&lt;span style="color:#204a87;font-weight:bold">if&lt;/span> &lt;span style="color:#000">p&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">!=&lt;/span> &lt;span style="color:#204a87;font-weight:bold">nil&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>
+&lt;span style="color:#000">l&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">+=&lt;/span> &lt;span style="color:#000">p&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">field1Length&lt;/span>&lt;span style="color:#000;font-weight:bold">()&lt;/span>
+&lt;span style="color:#000">l&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">+=&lt;/span> &lt;span style="color:#000">p&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">field2Length&lt;/span>&lt;span style="color:#000;font-weight:bold">()&lt;/span>
+&lt;span style="color:#000">l&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">+=&lt;/span> &lt;span style="color:#000">p&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">field3Length&lt;/span>&lt;span style="color:#000;font-weight:bold">()&lt;/span>
+&lt;span style="color:#ce5c00;font-weight:bold">...&lt;/span>
+&lt;span style="color:#000;font-weight:bold">}&lt;/span>
+&lt;span style="color:#000">l&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">+=&lt;/span> &lt;span style="color:#000">bthrift&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">Binary&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">FieldStopLength&lt;/span>&lt;span style="color:#000;font-weight:bold">()&lt;/span>
+&lt;span style="color:#000">l&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">+=&lt;/span> &lt;span style="color:#000">bthrift&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">Binary&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">StructEndLength&lt;/span>&lt;span style="color:#000;font-weight:bold">()&lt;/span>
+&lt;span style="color:#204a87;font-weight:bold">return&lt;/span> &lt;span style="color:#000">l&lt;/span>
+&lt;span style="color:#000;font-weight:bold">}&lt;/span>
+&lt;span style="color:#204a87;font-weight:bold">func&lt;/span> &lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">p&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">*&lt;/span>&lt;span style="color:#000">Demo&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#000">FastWrite&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">buf&lt;/span> &lt;span style="color:#000;font-weight:bold">[]&lt;/span>&lt;span style="color:#204a87;font-weight:bold">byte&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#204a87;font-weight:bold">int&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>
+&lt;span style="color:#000">offset&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">:=&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">0&lt;/span>
+&lt;span style="color:#000">offset&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">+=&lt;/span> &lt;span style="color:#000">bthrift&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">Binary&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">WriteStructBegin&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">buf&lt;/span>&lt;span style="color:#000;font-weight:bold">[&lt;/span>&lt;span style="color:#000">offset&lt;/span>&lt;span style="color:#000;font-weight:bold">:],&lt;/span> &lt;span style="color:#4e9a06">&amp;#34;Demo&amp;#34;&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span>
+&lt;span style="color:#204a87;font-weight:bold">if&lt;/span> &lt;span style="color:#000">p&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">!=&lt;/span> &lt;span style="color:#204a87;font-weight:bold">nil&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>
+&lt;span style="color:#000">offset&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">+=&lt;/span> &lt;span style="color:#000">p&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">fastWriteField2&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">buf&lt;/span>&lt;span style="color:#000;font-weight:bold">[&lt;/span>&lt;span style="color:#000">offset&lt;/span>&lt;span style="color:#000;font-weight:bold">:])&lt;/span>
+&lt;span style="color:#000">offset&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">+=&lt;/span> &lt;span style="color:#000">p&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">fastWriteField4&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">buf&lt;/span>&lt;span style="color:#000;font-weight:bold">[&lt;/span>&lt;span style="color:#000">offset&lt;/span>&lt;span style="color:#000;font-weight:bold">:])&lt;/span>
+&lt;span style="color:#000">offset&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">+=&lt;/span> &lt;span style="color:#000">p&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">fastWriteField1&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">buf&lt;/span>&lt;span style="color:#000;font-weight:bold">[&lt;/span>&lt;span style="color:#000">offset&lt;/span>&lt;span style="color:#000;font-weight:bold">:])&lt;/span>
+&lt;span style="color:#000">offset&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">+=&lt;/span> &lt;span style="color:#000">p&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">fastWriteField3&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">buf&lt;/span>&lt;span style="color:#000;font-weight:bold">[&lt;/span>&lt;span style="color:#000">offset&lt;/span>&lt;span style="color:#000;font-weight:bold">:])&lt;/span>
+&lt;span style="color:#000;font-weight:bold">}&lt;/span>
+&lt;span style="color:#000">offset&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">+=&lt;/span> &lt;span style="color:#000">bthrift&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">Binary&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">WriteFieldStop&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">buf&lt;/span>&lt;span style="color:#000;font-weight:bold">[&lt;/span>&lt;span style="color:#000">offset&lt;/span>&lt;span style="color:#000;font-weight:bold">:])&lt;/span>
+&lt;span style="color:#000">offset&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">+=&lt;/span> &lt;span style="color:#000">bthrift&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">Binary&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">WriteStructEnd&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">buf&lt;/span>&lt;span style="color:#000;font-weight:bold">[&lt;/span>&lt;span style="color:#000">offset&lt;/span>&lt;span style="color:#000;font-weight:bold">:])&lt;/span>
+&lt;span style="color:#204a87;font-weight:bold">return&lt;/span> &lt;span style="color:#000">offset&lt;/span>
+&lt;span style="color:#000;font-weight:bold">}&lt;/span>
+&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="optimize-thrift-encoding-using-simd">Optimize Thrift Encoding Using SIMD&lt;/h4>
+&lt;p>&amp;ldquo;list&amp;lt;i64/i32&amp;gt;&amp;rdquo; is widely used in the company to carry the ID list, and the encoding method of &amp;ldquo;list&amp;lt;i64/i32&amp;gt;&amp;rdquo; is highly consistent with the rule of vectorization. Thus, we use SIMD to optimize the encoding process of list&amp;lt;i64/i32&amp;gt;.&lt;/p>
+&lt;p>We implement &amp;ldquo;avx2&amp;rdquo; to optimize the encoding process, and the optimized results are significant. When dealing with large amounts of data, the performance can be improved by 6 times for i64 and 12 times for i32. In the case of small data volume, the improvement is more obvious, which achieves 10 times for i64 and 20 times for I32.&lt;/p>
+&lt;h4 id="reducing-function-calls">Reducing Function Calls&lt;/h4>
+&lt;p>&lt;strong>inline&lt;/strong>&lt;br>
+The purpose of &amp;ldquo;inline&amp;rdquo; is to expand a function call during its compliance and replace it with the implementation of the function. It improves program performance by reducing the overhead of the function call.&lt;/p>
+&lt;p>&amp;ldquo;inline&amp;rdquo; can&amp;rsquo;t be implemented on all functions in Go. Run the process with the argument - (gflags=&amp;quot;-m&amp;quot;) to display the functions that are inline. The following conditions cannot be inlined:&lt;/p>
+&lt;ul>
+&lt;li>A function containing a loop;&lt;/li>
+&lt;li>Functions that include: closure calls, select, for, defer, coroutines created by the go keyword;&lt;/li>
+&lt;li>Functions over a certain length, by default when parsing the AST, Go applies 80 nodes. Each node consumes one unit of inline budget. For example, a = a + 1 contains five nodes: AS, NAME, ADD, NAME, LITERAL. When the overhead of a function exceeds this budget, it cannot be inlined.&lt;/li>
+&lt;/ul>
+&lt;p>You can specify the intensity (go 1.9+) of the compiler&amp;rsquo;s inlined code by specifying -l at compile time. But it is not recommended, as in our test scenario, it is buggy and does not work:&lt;/p>
+&lt;div class="highlight">&lt;pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-go" data-lang="go">&lt;span style="color:#8f5902;font-style:italic">// The debug[&amp;#39;l&amp;#39;] flag controls the aggressiveness. Note that main() swaps level 0 and 1, making 1 the default and -l disable. Additional levels (beyond -l) may be buggy and are not supported.
+&lt;/span>&lt;span style="color:#8f5902;font-style:italic">// 0: disabled
+&lt;/span>&lt;span style="color:#8f5902;font-style:italic">// 1: 80-nodes leaf functions, oneliners, panic, lazy typechecking (default)
+&lt;/span>&lt;span style="color:#8f5902;font-style:italic">// 2: (unassigned)
+&lt;/span>&lt;span style="color:#8f5902;font-style:italic">// 3: (unassigned)
+&lt;/span>&lt;span style="color:#8f5902;font-style:italic">// 4: allow non-leaf functions
+&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Although using &amp;ldquo;inline&amp;rdquo; can reduce the overhead of function calls, it may also lead to lower CPU cache hit rate due to code redundancy. Therefore, excessive usage of &amp;ldquo;inline&amp;rdquo; should not be blindly pursued, and specific analysis should be carried out based on &amp;ldquo;profile&amp;rdquo; results.&lt;/p>
+&lt;div class="highlight">&lt;pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-bash" data-lang="bash">go &lt;span style="color:#204a87">test&lt;/span> -gcflags&lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span>&lt;span style="color:#4e9a06">&amp;#39;-m=2&amp;#39;&lt;/span> -v -test.run TestNewCodec 2&amp;gt;&lt;span style="color:#000;font-weight:bold">&amp;amp;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">1&lt;/span> &lt;span style="color:#000;font-weight:bold">|&lt;/span> grep &lt;span style="color:#4e9a06">&amp;#34;function too complex&amp;#34;&lt;/span> &lt;span style="color:#000;font-weight:bold">|&lt;/span> wc -l
+&lt;span style="color:#0000cf;font-weight:bold">48&lt;/span>
+go &lt;span style="color:#204a87">test&lt;/span> -gcflags&lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span>&lt;span style="color:#4e9a06">&amp;#39;-m=2 -l=4&amp;#39;&lt;/span> -v -test.run TestNewCodec 2&amp;gt;&lt;span style="color:#000;font-weight:bold">&amp;amp;&lt;/span>&lt;span style="color:#0000cf;font-weight:bold">1&lt;/span> &lt;span style="color:#000;font-weight:bold">|&lt;/span> grep &lt;span style="color:#4e9a06">&amp;#34;function too complex&amp;#34;&lt;/span> &lt;span style="color:#000;font-weight:bold">|&lt;/span> wc -l
+&lt;span style="color:#0000cf;font-weight:bold">25&lt;/span>
+&lt;/code>&lt;/pre>&lt;/div>&lt;p>As you can see from the output above, increasing the inline intensity does reduce the &amp;ldquo;function too complex&amp;rdquo;. Following are the benchmark results:&lt;/p>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:left">Benchmark&lt;/th>
+&lt;th style="text-align:left">time/op&lt;/th>
+&lt;th style="text-align:left">bytes/op&lt;/th>
+&lt;th style="text-align:left">allocs/op&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:left">BenchmarkOldMarshal-4&lt;/td>
+&lt;td style="text-align:left">309 µs ± 2%&lt;/td>
+&lt;td style="text-align:left">218KB&lt;/td>
+&lt;td style="text-align:left">11&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">BenchmarkNewMarshal-4&lt;/td>
+&lt;td style="text-align:left">310 µs ± 3%&lt;/td>
+&lt;td style="text-align:left">218KB&lt;/td>
+&lt;td style="text-align:left">11&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;p>It reveals that turning on the highest level of inlining intensity does eliminate many functions that cannot be inlined due to &amp;ldquo;function too complex&amp;rdquo;, but the test results show that the improvement is insignificant.&lt;/p>
+&lt;h3 id="testing-results">Testing Results&lt;/h3>
+&lt;p>We built benchmarks to compare performance before and after optimization, and here are the results.
+Testing Enviornment:
+Go 1.13.5 darwin/amd64 on a 2.5 GHz Intel Core i7 16GB&lt;/p>
+&lt;p>&lt;strong>Small Data Size&lt;/strong>&lt;/p>
+&lt;p>Data size: 20KB&lt;/p>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:left">Benchmark&lt;/th>
+&lt;th style="text-align:left">time/op&lt;/th>
+&lt;th style="text-align:left">bytes/op&lt;/th>
+&lt;th style="text-align:left">allocs/op&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:left">BenchmarkOldMarshal-4&lt;/td>
+&lt;td style="text-align:left">138 µs ± 3%&lt;/td>
+&lt;td style="text-align:left">25.4KB&lt;/td>
+&lt;td style="text-align:left">19&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">BenchmarkNewMarshal-4&lt;/td>
+&lt;td style="text-align:left">29 µs ± 3%&lt;/td>
+&lt;td style="text-align:left">26.4KB&lt;/td>
+&lt;td style="text-align:left">11&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">Marshal Delta&lt;/td>
+&lt;td style="text-align:left">-78.97%&lt;/td>
+&lt;td style="text-align:left">3.87%&lt;/td>
+&lt;td style="text-align:left">-42.11%&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">BenchmarkOldUnmarshal-4&lt;/td>
+&lt;td style="text-align:left">199 µs ± 3%&lt;/td>
+&lt;td style="text-align:left">4720&lt;/td>
+&lt;td style="text-align:left">1360&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">BenchmarkNewUnmarshal-4&lt;/td>
+&lt;td style="text-align:left">94µs ± 5%&lt;/td>
+&lt;td style="text-align:left">4700&lt;/td>
+&lt;td style="text-align:left">1280&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">Unmarshal Delta&lt;/td>
+&lt;td style="text-align:left">-52.93%&lt;/td>
+&lt;td style="text-align:left">-0.24%&lt;/td>
+&lt;td style="text-align:left">-5.38%&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;p>&lt;strong>Large Data Size&lt;/strong>&lt;/p>
+&lt;p>Data size: 6MB&lt;/p>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:left">Benchmark&lt;/th>
+&lt;th style="text-align:left">time/op&lt;/th>
+&lt;th style="text-align:left">bytes/op&lt;/th>
+&lt;th style="text-align:left">allocs/op&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:left">BenchmarkOldMarshal-4&lt;/td>
+&lt;td style="text-align:left">58.7ms ± 5%&lt;/td>
+&lt;td style="text-align:left">6.96MB&lt;/td>
+&lt;td style="text-align:left">3350&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">BenchmarkNewMarshal-4&lt;/td>
+&lt;td style="text-align:left">13.3ms ± 3%&lt;/td>
+&lt;td style="text-align:left">6.84MB&lt;/td>
+&lt;td style="text-align:left">10&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">Marshal Delta&lt;/td>
+&lt;td style="text-align:left">-77.30%&lt;/td>
+&lt;td style="text-align:left">-1.71%&lt;/td>
+&lt;td style="text-align:left">-99.64%&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">BenchmarkOldUnmarshal-4&lt;/td>
+&lt;td style="text-align:left">56.6ms ± 3%&lt;/td>
+&lt;td style="text-align:left">17.4MB&lt;/td>
+&lt;td style="text-align:left">391000&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">BenchmarkNewUnmarshal-4&lt;/td>
+&lt;td style="text-align:left">26.8ms ± 5%&lt;/td>
+&lt;td style="text-align:left">17.5MB&lt;/td>
+&lt;td style="text-align:left">390000&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">Unmarshal Delta&lt;/td>
+&lt;td style="text-align:left">-52.54%&lt;/td>
+&lt;td style="text-align:left">0.09%&lt;/td>
+&lt;td style="text-align:left">-0.37%&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h2 id="copy-free-serialization">Copy-free Serialization&lt;/h2>
+&lt;p>In some services with large request and response data, the cost of serialization and deserialization is high. There are two ways for optimization:&lt;/p>
+&lt;ul>
+&lt;li>Implement the optimization strategy on serialization and deserialization as described earlier.&lt;/li>
+&lt;li>Scheduling by copy-free serialization.&lt;/li>
+&lt;/ul>
+&lt;h3 id="research-on-copy-free-serilization">Research on Copy-free Serilization&lt;/h3>
+&lt;p>RPC through copy-free serialization, which originated from the &amp;ldquo;Cap &amp;lsquo;n Proto&amp;rdquo; project of Kenton Varda. &amp;ldquo;Cap &amp;lsquo;n Proto&amp;rdquo; provides a set of data exchange formats and corresponding codec libraries.&lt;/p>
+&lt;p>In essence, &amp;ldquo;Cap &amp;lsquo;n Proto&amp;rdquo; creates a bytes slice as buffer, and all read &amp;amp; write operations on data structures are directly operated on buffer. After reading &amp;amp; writing, information contained by the buffer is added to the head and can be sent directly. And the peer end can read it after receiving it. Since there is no Go structure as an intermediate storage, serialization and deserialization are not required.&lt;/p>
+&lt;p>To briefly summarize the characteristics of &amp;ldquo;Cap &amp;lsquo;n Proto&amp;rdquo;:&lt;/p>
+&lt;ul>
+&lt;li>All data is read and written to a contiguous memory.&lt;/li>
+&lt;li>The serialization operation is preceded. &amp;ldquo;Get/Set&amp;rdquo; data and encoding process in parallel.&lt;/li>
+&lt;li>In the data exchange format, pointer (&amp;ldquo;offset&amp;rdquo; at the data memory) mechanism is used to store data at any location in the contiguous memory, so that data in the structure can be read and written in any order.
+&lt;ul>
+&lt;li>Fixed-size fields of a structure are rearranged so that they are stored in contiguous memory.&lt;/li>
+&lt;li>Fields with indeterminate size of a structure (e.g. list), are represented by a fixed-size pointer that stores information including the location of the data.
+First of all, &amp;ldquo;Cap &amp;lsquo;n Proto&amp;rdquo; has no Go language structure as an intermediate carrier, which can reduce a copy. Then, &amp;ldquo;Cap &amp;lsquo;n Proto&amp;rdquo; operates on a contiguous memory, and the read and write of coded data can be completed at once. Because of these two reasons, Cap &amp;lsquo;n Proto has excellent performance.&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;/ul>
+&lt;p>Here are the benchmarks of &amp;ldquo;Thrift&amp;rdquo; and &amp;ldquo;Cap &amp;lsquo;n Proto&amp;rdquo; for the same data structure. Considering that &amp;ldquo;Cap &amp;lsquo;n Proto&amp;rdquo; presets the codec operation, we compare the complete process including data initialization. That is, structure data initialization + (serialization) + write buffer + read from buffer + (deserialization) + read from structure.&lt;/p>
+&lt;div class="highlight">&lt;pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-Thrift" data-lang="Thrift">&lt;span style="color:#204a87;font-weight:bold">struct&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#000">MyTest&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#000;font-weight:bold">{&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#0000cf;font-weight:bold">1&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#204a87;font-weight:bold">i64&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#000">Num&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#0000cf;font-weight:bold">2&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#000">Ano&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#000">Ano&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#0000cf;font-weight:bold">3&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#204a87;font-weight:bold">list&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;lt;&lt;/span>&lt;span style="color:#204a87;font-weight:bold">i64&lt;/span>&lt;span style="color:#000;font-weight:bold">&amp;gt;&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#000">Nums&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#8f5902;font-style:italic">// 长度131072 大小1MB
+&lt;/span>&lt;span style="color:#8f5902;font-style:italic">&lt;/span>&lt;span style="color:#000;font-weight:bold">}&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">&lt;/span>&lt;span style="color:#204a87;font-weight:bold">struct&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#000">Ano&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#000;font-weight:bold">{&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#0000cf;font-weight:bold">1&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#204a87;font-weight:bold">i64&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#000">Num&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">&lt;/span>&lt;span style="color:#000;font-weight:bold">}&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:left">Benchmark&lt;/th>
+&lt;th style="text-align:left">Iter&lt;/th>
+&lt;th style="text-align:left">time/op&lt;/th>
+&lt;th style="text-align:left">bytes/op&lt;/th>
+&lt;th style="text-align:left">alloc/op&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:left">BenchmarkThriftReadWrite&lt;/td>
+&lt;td style="text-align:left">172&lt;/td>
+&lt;td style="text-align:left">6855840 ns/op&lt;/td>
+&lt;td style="text-align:left">3154209 B/op&lt;/td>
+&lt;td style="text-align:left">545 allocs/op&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">BenchmarkCapnpReadWrite&lt;/td>
+&lt;td style="text-align:left">1500&lt;/td>
+&lt;td style="text-align:left">844924 ns/op&lt;/td>
+&lt;td style="text-align:left">2085713 B/op&lt;/td>
+&lt;td style="text-align:left">9 allocs/op&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">ReadWrite Delta&lt;/td>
+&lt;td style="text-align:left">/&lt;/td>
+&lt;td style="text-align:left">-87.68%&lt;/td>
+&lt;td style="text-align:left">-33.88%&lt;/td>
+&lt;td style="text-align:left">-98.35%&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;p>(deserialization) + read data, depending on the size of data package,&amp;ldquo;Cap &amp;lsquo;n Proto&amp;rdquo; performance is about 8-9 times better than &amp;ldquo;Thrift&amp;rdquo;. Write data + (serialization), depending on the size of data package, &amp;ldquo;Cap &amp;lsquo;n Proto&amp;rdquo; performance is approximately 2-8 times better than &amp;ldquo;Thrift&amp;rdquo;. Overall performance of &amp;ldquo;Cap &amp;lsquo;n Proto&amp;rdquo; is approximately 4-8 times better than &amp;ldquo;Thrift&amp;rdquo;.&lt;/p>
+&lt;p>Previously, we discussed the advantages of &amp;ldquo;Cap &amp;lsquo;n Proto&amp;rdquo;. We will then summarize some problems existing in &amp;ldquo;Cap &amp;lsquo;n Proto&amp;rdquo;:&lt;/p>
+&lt;ul>
+&lt;li>One problem with the contiguous memory of Cap &amp;lsquo;n Proto is that when the data of variable size is resized and the required space is larger than the original space, the space of the original data can only be reallocated later. As a result, the original space becomes a hole that cannot be removed. This problem gets worse as the call link is resized, and can only be solved with strict constraints throughout the link: avoid resizing fields with indefined size, and when resize is necessary, rebuild a structure and make a deep copy of the data.&lt;/li>
+&lt;li>&amp;ldquo;Cap &amp;lsquo;n Proto&amp;rdquo; has no Go language structure as an intermediate carrier, so all fields can only be read and written through the interface, resulting in poor user experience.&lt;/li>
+&lt;/ul>
+&lt;h3 id="thrift-protocols-compatible-copy-free-serialization">Thrift Protocol‘s Compatible Copy-free Serialization&lt;/h3>
+&lt;p>In order to support copy-free serialization better and more efficiently, &amp;ldquo;Cap &amp;lsquo;n Proto&amp;rdquo; uses a self-developed codec format, but it is difficult to be implemented in the current environment where &amp;ldquo;Thrift&amp;rdquo; and &amp;ldquo;ProtoBuf&amp;rdquo; are dominant. In order to achieve the performance of copy-free serialization with protocol compatibility, we started the exploration of copy-free serialization that is compatible with &amp;ldquo;Thrift&amp;rdquo; protocol.&lt;/p>
+&lt;p>&amp;ldquo;Cap &amp;lsquo;n Proto&amp;rdquo; is a benchmark for copy-free serialization, so let&amp;rsquo;s see if the optimizations on &amp;ldquo;Cap &amp;lsquo;n Proto&amp;rdquo; can be applied to Thrift:&lt;/p>
+&lt;ul>
+&lt;li>Nature is the core of copy-free serialization, which does not use Go structure as intermediate carriers to reduce one copy. This optimization is not about a particular protocol and can be applied to any existing protocol (So it&amp;rsquo;s naturally compatible with the Thrift protocol), but the user experience of &amp;ldquo;Cap &amp;lsquo;n Proto&amp;rdquo; reflects that it needs to be carefully polished.&lt;/li>
+&lt;li>&amp;ldquo;Cap &amp;lsquo;n Proto&amp;rdquo; is operated on a contiguous memory. The read &amp;amp; write of the encoded data can be completed at once. &amp;ldquo;Cap &amp;lsquo;n Proto&amp;rdquo; can operate on contiguous memory because there is a pointer mechanism that allows data to be stored anywhere, allowing fields to be written in any order without affecting decoding. However, on the one hand, it is very likely to leave a hole in resize due to misoperation on contiguous memory. Besides, &amp;ldquo;Thrift&amp;rdquo; has no pointer alike mechanism, so it has stricter requirements on data layout. Here are two ways to approach such problems:
+&lt;ul>
+&lt;li>Insist on contiguous memory operation, while imposing strict regulations on users&amp;rsquo; usage: 1. Resize operation must rebuild the data structure 2. When a structure is nested, there are strict requirements on the order in which the fields are written (we can think of it as unfolding a nested structure from the outside in, and being written in the same order) . In addition, due to TLV encoding such as Binary, when writing begins for each nesting, it requires declaration (such as &amp;ldquo;StartWriteFieldX&amp;rdquo;).&lt;/li>
+&lt;li>Operating not entirely in contiguous memory, alterable fields are allocated a separate piece of memory. Since memory is not completely contiguous, the write operation can&amp;rsquo;t complete the output at once. In order to get closer to the performance of writing data at once, we adopted a linked buffer scheme. On the one hand, when the variable field resize occurs, only one node of the linked buffer is replaced, and there is no need to reconstruct the structure like &amp;ldquo;Cap &amp;lsquo;n Proto”. On the other hand, there is no need to clarify the actual structure like &amp;ldquo;Thrift&amp;rdquo; when the output is needed, just write the buffer on the link.
+To summarize what we have determined previously: 1. Do not use Go structure as the intermediate carrier, directly operate the underlying memory through the interface, and complete the codec at the same time of &amp;ldquo;Get/Set&amp;rdquo;. 2. Data is stored through a linked buffer.&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;/ul>
+&lt;p>Then let&amp;rsquo;s take a look at the remaining issues:&lt;/p>
+&lt;ul>
+&lt;li>Degradation of the user experience caused by not using Go structures.
+&lt;ul>
+&lt;li>Solution: Improve the user experience of &amp;ldquo;Get/Set&amp;rdquo; interface and make it as easy to use as the Go structure.&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>Binary Format of &amp;ldquo;Cap &amp;lsquo;n Proto&amp;rdquo; is designed specifically for copy-free serialization scenarios, and although decoding is performed once for every Get, the decoding costs are minimal. The &amp;ldquo;Thrift&amp;rdquo; protocol (taking &amp;ldquo;Binary&amp;rdquo; as an example) has no mechanism that is similar to pointer. When there are multiple fields of variable size or nesting, they must be resolved sequentially instead of directly calculating the offset to get the field data location. Moreover, the cost of sequential resolution for each Get is too high.
+&lt;ul>
+&lt;li>Solution: In addition to recording the structure&amp;rsquo;s buffer nodes, we also add an index that records the pointer to the buffer node at the beginning of each field with unfixed size. The following is the ultimate performance comparison test between the current copy-free serialization scheme and &amp;ldquo;FastRead/Write&amp;rdquo; under the condition of 4 cores:&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;/ul>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:left">Package Size&lt;/th>
+&lt;th style="text-align:left">Type&lt;/th>
+&lt;th style="text-align:left">QPS&lt;/th>
+&lt;th style="text-align:left">TP90&lt;/th>
+&lt;th style="text-align:left">TP99&lt;/th>
+&lt;th style="text-align:left">TP999&lt;/th>
+&lt;th style="text-align:left">CPU&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:left">1KB&lt;/td>
+&lt;td style="text-align:left">Non-serialization&lt;/td>
+&lt;td style="text-align:left">70,700&lt;/td>
+&lt;td style="text-align:left">1 ms&lt;/td>
+&lt;td style="text-align:left">3 ms&lt;/td>
+&lt;td style="text-align:left">6 ms&lt;/td>
+&lt;td style="text-align:left">/&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">&lt;/td>
+&lt;td style="text-align:left">FastWrite/FastRead&lt;/td>
+&lt;td style="text-align:left">82,490&lt;/td>
+&lt;td style="text-align:left">1 ms&lt;/td>
+&lt;td style="text-align:left">2 ms&lt;/td>
+&lt;td style="text-align:left">4 ms&lt;/td>
+&lt;td style="text-align:left">/&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">2KB&lt;/td>
+&lt;td style="text-align:left">Non-serialization&lt;/td>
+&lt;td style="text-align:left">65,000&lt;/td>
+&lt;td style="text-align:left">1 ms&lt;/td>
+&lt;td style="text-align:left">4 ms&lt;/td>
+&lt;td style="text-align:left">9 ms&lt;/td>
+&lt;td style="text-align:left">/&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">&lt;/td>
+&lt;td style="text-align:left">FastWrite/FastRead&lt;/td>
+&lt;td style="text-align:left">72,000&lt;/td>
+&lt;td style="text-align:left">1 ms&lt;/td>
+&lt;td style="text-align:left">2 ms&lt;/td>
+&lt;td style="text-align:left">8 ms&lt;/td>
+&lt;td style="text-align:left">/&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">4KB&lt;/td>
+&lt;td style="text-align:left">Non-serialization&lt;/td>
+&lt;td style="text-align:left">56,400&lt;/td>
+&lt;td style="text-align:left">2 ms&lt;/td>
+&lt;td style="text-align:left">5 ms&lt;/td>
+&lt;td style="text-align:left">10 ms&lt;/td>
+&lt;td style="text-align:left">380%&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">&lt;/td>
+&lt;td style="text-align:left">FastWrite/FastRead&lt;/td>
+&lt;td style="text-align:left">52,700&lt;/td>
+&lt;td style="text-align:left">2 ms&lt;/td>
+&lt;td style="text-align:left">4 ms&lt;/td>
+&lt;td style="text-align:left">10 ms&lt;/td>
+&lt;td style="text-align:left">380%&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">32KB&lt;/td>
+&lt;td style="text-align:left">Non-serialization&lt;/td>
+&lt;td style="text-align:left">27,400&lt;/td>
+&lt;td style="text-align:left">/&lt;/td>
+&lt;td style="text-align:left">/&lt;/td>
+&lt;td style="text-align:left">/&lt;/td>
+&lt;td style="text-align:left">/&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">&lt;/td>
+&lt;td style="text-align:left">FastWrite/FastRead&lt;/td>
+&lt;td style="text-align:left">19,500&lt;/td>
+&lt;td style="text-align:left">/&lt;/td>
+&lt;td style="text-align:left">/&lt;/td>
+&lt;td style="text-align:left">/&lt;/td>
+&lt;td style="text-align:left">/&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">1MB&lt;/td>
+&lt;td style="text-align:left">Non-serialization&lt;/td>
+&lt;td style="text-align:left">986&lt;/td>
+&lt;td style="text-align:left">53 ms&lt;/td>
+&lt;td style="text-align:left">56 ms&lt;/td>
+&lt;td style="text-align:left">59 ms&lt;/td>
+&lt;td style="text-align:left">260%&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">&lt;/td>
+&lt;td style="text-align:left">FastWrite/FastRead&lt;/td>
+&lt;td style="text-align:left">942&lt;/td>
+&lt;td style="text-align:left">55 ms&lt;/td>
+&lt;td style="text-align:left">59 ms&lt;/td>
+&lt;td style="text-align:left">62 ms&lt;/td>
+&lt;td style="text-align:left">290%&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">10MB&lt;/td>
+&lt;td style="text-align:left">Non-serialization&lt;/td>
+&lt;td style="text-align:left">82&lt;/td>
+&lt;td style="text-align:left">630 ms&lt;/td>
+&lt;td style="text-align:left">640 ms&lt;/td>
+&lt;td style="text-align:left">645 ms&lt;/td>
+&lt;td style="text-align:left">240%&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">&lt;/td>
+&lt;td style="text-align:left">FastWrite/FastRead&lt;/td>
+&lt;td style="text-align:left">82&lt;/td>
+&lt;td style="text-align:left">630 ms&lt;/td>
+&lt;td style="text-align:left">640 ms&lt;/td>
+&lt;td style="text-align:left">640 ms&lt;/td>
+&lt;td style="text-align:left">270&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;p>Summary of the test results:&lt;/p>
+&lt;ul>
+&lt;li>In small data package scenario, performance of non-serialization is poorer - about 85% of the &amp;ldquo;FastWrite/FastRead &amp;rsquo;s&amp;rdquo; performance .&lt;/li>
+&lt;li>In large data package scenario, the performance of non-serialization is better. When processing packages larger than 4K, the performance of non-serialization is 7%-40% better compared with &amp;ldquo;FastWrite/FastRead&amp;rdquo;.&lt;/li>
+&lt;/ul>
+&lt;h2 id="postscript">Postscript&lt;/h2>
+&lt;p>Hope the above sharing can be helpful to the community. At the same time, we are also trying to share memory-based IPC, io_uring, TCP zero copy, RDMA, etc., to better improve Kitex performance; We will also focus on optimizing the communication under the contexts of same device and container. Welcome to join us and contribute to Go ecology together!&lt;/p>
+&lt;h2 id="reference">Reference&lt;/h2>
+&lt;ul>
+&lt;li>&lt;a href="https://github.com/alecthomas/go_serialization_benchmarks">https://github.com/alecthomas/go_serialization_benchmarks&lt;/a>&lt;/li>
+&lt;li>&lt;a href="https://capnproto.org/">https://capnproto.org/&lt;/a>&lt;/li>
+&lt;li>&lt;a href="https://software.intel.com/content/www/us/en/develop/documentation/cpp-compiler-developer-guide-and-reference/top/compiler-reference/intrinsics/intrinsics-for-intel-advanced-vector-extensions-2/intrinsics-for-shuffle-operations-1/mm256-shuffle-epi8.html">https://software.intel.com/content/www/us/en/develop/documentation/cpp-compiler-developer-guide-and-reference/top/compiler-reference/intrinsics/intrinsics-for-intel-advanced-vector-extensions-2/intrinsics-for-shuffle-operations-1/mm256-shuffle-epi8.html&lt;/a>&lt;/li>
+&lt;/ul></description></item><item><title>Blog: Netpoll Release v0.0.4</title><link>/blog/2021/09/16/netpoll-release-v0.0.4/</link><pubDate>Thu, 16 Sep 2021 00:00:00 +0000</pubDate><guid>/blog/2021/09/16/netpoll-release-v0.0.4/</guid><description>
 &lt;h2 id="improvement">Improvement:&lt;/h2>
 &lt;ul>
 &lt;li>Support TCP_NODELAY by default&lt;/li>
