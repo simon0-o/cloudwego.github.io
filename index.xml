@@ -1,4 +1,40 @@
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>CloudWeGo – CloudWeGo</title><link>/</link><description>Recent content on CloudWeGo</description><generator>Hugo -- gohugo.io</generator><atom:link href="/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: Performance Optimization on Kitex</title><link>/blog/2021/09/23/performance-optimization-on-kitex/</link><pubDate>Thu, 23 Sep 2021 00:00:00 +0000</pubDate><guid>/blog/2021/09/23/performance-optimization-on-kitex/</guid><description>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>CloudWeGo – CloudWeGo</title><link>/</link><description>Recent content on CloudWeGo</description><generator>Hugo -- gohugo.io</generator><atom:link href="/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: Kitex Release v0.0.5</title><link>/blog/2021/09/26/kitex-release-v0.0.5/</link><pubDate>Sun, 26 Sep 2021 00:00:00 +0000</pubDate><guid>/blog/2021/09/26/kitex-release-v0.0.5/</guid><description>
+&lt;h2 id="feature">Feature:&lt;/h2>
+&lt;ul>
+&lt;li>Add default ErrorHandler to wrap remote error when no ErrorHandler is specified.&lt;/li>
+&lt;li>Backward metainfo is supported.&lt;/li>
+&lt;li>JSON generic call is supported. Usage guide: &lt;a href="https://www.cloudwego.io/docs/tutorials/advanced-feature/generic_call/#4-json-mapping-generic-call">link&lt;/a>.&lt;/li>
+&lt;/ul>
+&lt;h2 id="improvement">Improvement:&lt;/h2>
+&lt;ul>
+&lt;li>Use new netpoll API to improve throughput and reduce latency for mux.&lt;/li>
+&lt;li>Backward and forward metainfo is supported for mux.&lt;/li>
+&lt;li>Client will use RPCTimeout middleware when necessary.&lt;/li>
+&lt;li>Add validity verification of idle connection in ConnecitonPool.&lt;/li>
+&lt;li>QPS limiter token will be reset when QPS limit updates.&lt;/li>
+&lt;li>Reduce the deviation of QPS Limiter.&lt;/li>
+&lt;/ul>
+&lt;h2 id="bugfix">Bugfix:&lt;/h2>
+&lt;ul>
+&lt;li>Fix WithExitWaitTime won&amp;rsquo;t set exit wait time correctly.&lt;/li>
+&lt;li>Fix goroutine leak when update interval of QPS limiter.&lt;/li>
+&lt;li>Use actual listen address to build registry info.&lt;/li>
+&lt;/ul>
+&lt;h2 id="tool">Tool:&lt;/h2>
+&lt;ul>
+&lt;li>Fix code generating error when no stream method in protobuf file.&lt;/li>
+&lt;/ul>
+&lt;h2 id="docs">Docs:&lt;/h2>
+&lt;ul>
+&lt;li>English is available for README and all other documents.&lt;/li>
+&lt;li>Guide for generic call. &lt;a href="https://www.cloudwego.io/docs/tutorials/advanced-feature/generic_call">English&lt;/a> | &lt;a href="https://www.cloudwego.io/zh/docs/tutorials/advanced-feature/generic_call/">中文&lt;/a>&lt;/li>
+&lt;li>Landscape and Roadmap in README.&lt;/li>
+&lt;/ul>
+&lt;h2 id="dependency-change">Dependency Change:&lt;/h2>
+&lt;ul>
+&lt;li>github.com/cloudwego/netpoll: v0.0.3 -&amp;gt; v0.0.4&lt;/li>
+&lt;li>github.com/bytedance/gopkg: v0.0.0-20210709064845-3c00f9323f09 -&amp;gt; v0.0.0-20210910103821-e4efae9c17c3&lt;/li>
+&lt;/ul></description></item><item><title>Blog: Performance Optimization on Kitex</title><link>/blog/2021/09/23/performance-optimization-on-kitex/</link><pubDate>Thu, 23 Sep 2021 00:00:00 +0000</pubDate><guid>/blog/2021/09/23/performance-optimization-on-kitex/</guid><description>
 &lt;h2 id="preface">Preface&lt;/h2>
 &lt;p>Kitex is the next generation high-performance and extensible Go RPC framework developed by Bytedance Service Framework Team. Compared with other RPC frameworks, in addition to its rich features for service governance, it has the following characteristics: Integrated with the in-house developed network library - Netpoll; Supports multiple Message Protocols (Thrift, Protobuf) and Interactive Models (Ping-Pong, Oneway, Streaming); Provides a more flexible and extensible code generator.&lt;/p>
 &lt;p>Currently, Kitex has been widely used by the major lines of business in ByteDance, and statistics shows that the number of service access is up to 8K. We&amp;rsquo;ve been continuously optimizing Kitex&amp;rsquo;s performance since its launch. This article will share our work on optimizing Netpoll and serialization.&lt;/p>
@@ -621,7 +657,7 @@ To summarize what we have determined previously: 1. Do not use Go structure as t
 &lt;ul>
 &lt;li>&lt;a href="https://github.com/alecthomas/go_serialization_benchmarks">https://github.com/alecthomas/go_serialization_benchmarks&lt;/a>&lt;/li>
 &lt;li>&lt;a href="https://capnproto.org/">https://capnproto.org/&lt;/a>&lt;/li>
-&lt;li>&lt;a href="https://software.intel.com/content/www/us/en/develop/documentation/cpp-compiler-developer-guide-and-reference/top/compiler-reference/intrinsics/intrinsics-for-intel-advanced-vector-extensions-2/intrinsics-for-shuffle-operations-1/mm256-shuffle-epi8.html">https://software.intel.com/content/www/us/en/develop/documentation/cpp-compiler-developer-guide-and-reference/top/compiler-reference/intrinsics/intrinsics-for-intel-advanced-vector-extensions-2/intrinsics-for-shuffle-operations-1/mm256-shuffle-epi8.html&lt;/a>&lt;/li>
+&lt;li>&lt;a href="https://software.intel.com/content/www/us/en/develop/documentation/cpp-compiler-developer-guide-and-reference/top/compiler-reference/intrinsics/intrinsics-for-intel-advanced-vector-extensions-2/intrinsics-for-shuffle-operations-1/mm256-shuffle-epi8.html">Intel C++ Compiler Classic Developer Guide and Reference&lt;/a>&lt;/li>
 &lt;/ul></description></item><item><title>Blog: Netpoll Release v0.0.4</title><link>/blog/2021/09/16/netpoll-release-v0.0.4/</link><pubDate>Thu, 16 Sep 2021 00:00:00 +0000</pubDate><guid>/blog/2021/09/16/netpoll-release-v0.0.4/</guid><description>
 &lt;h2 id="improvement">Improvement:&lt;/h2>
 &lt;ul>
@@ -637,42 +673,6 @@ To summarize what we have determined previously: 1. Do not use Go structure as t
 &lt;h2 id="bugfix">Bugfix:&lt;/h2>
 &lt;ul>
 &lt;li>Set leftover wait read size&lt;/li>
-&lt;/ul></description></item><item><title>Blog: Kitex Release v0.0.5</title><link>/blog/2021/09/26/kitex-release-v0.0.5/</link><pubDate>Sun, 26 Sep 2021 00:00:00 +0000</pubDate><guid>/blog/2021/09/26/kitex-release-v0.0.5/</guid><description>
-&lt;h2 id="feature">Feature:&lt;/h2>
-&lt;ul>
-&lt;li>Add default ErrorHandler to wrap remote error when no ErrorHandler is specified.&lt;/li>
-&lt;li>Backward metainfo is supported.&lt;/li>
-&lt;li>JSON generic call is supported. Usage guide: &lt;a href="https://www.cloudwego.io/docs/tutorials/advanced-feature/generic_call/#4-json-mapping-generic-call">link&lt;/a>.&lt;/li>
-&lt;/ul>
-&lt;h2 id="improvement">Improvement:&lt;/h2>
-&lt;ul>
-&lt;li>Use new netpoll API to improve throughput and reduce latency for mux.&lt;/li>
-&lt;li>Backward and forward metainfo is supported for mux.&lt;/li>
-&lt;li>Client will use RPCTimeout middleware when necessary.&lt;/li>
-&lt;li>Add validity verification of idle connection in ConnecitonPool.&lt;/li>
-&lt;li>QPS limiter token will be reset when QPS limit updates.&lt;/li>
-&lt;li>Reduce the deviation of QPS Limiter.&lt;/li>
-&lt;/ul>
-&lt;h2 id="bugfix">Bugfix:&lt;/h2>
-&lt;ul>
-&lt;li>Fix WithExitWaitTime won&amp;rsquo;t set exit wait time correctly.&lt;/li>
-&lt;li>Fix goroutine leak when update interval of QPS limiter.&lt;/li>
-&lt;li>Use actual listen address to build registry info.&lt;/li>
-&lt;/ul>
-&lt;h2 id="tool">Tool:&lt;/h2>
-&lt;ul>
-&lt;li>Fix code generating error when no stream method in protobuf file.&lt;/li>
-&lt;/ul>
-&lt;h2 id="docs">Docs:&lt;/h2>
-&lt;ul>
-&lt;li>English is available for README and all other documents.&lt;/li>
-&lt;li>Guide for generic call. &lt;a href="https://www.cloudwego.io/docs/tutorials/advanced-feature/generic_call">English&lt;/a> | &lt;a href="https://www.cloudwego.io/zh/docs/tutorials/advanced-feature/generic_call/">中文&lt;/a>&lt;/li>
-&lt;li>Landscape and Roadmap in README.&lt;/li>
-&lt;/ul>
-&lt;h2 id="dependency-change">Dependency Change:&lt;/h2>
-&lt;ul>
-&lt;li>github.com/cloudwego/netpoll: v0.0.3 -&amp;gt; v0.0.4&lt;/li>
-&lt;li>github.com/bytedance/gopkg: v0.0.0-20210709064845-3c00f9323f09 -&amp;gt; v0.0.0-20210910103821-e4efae9c17c3&lt;/li>
 &lt;/ul></description></item><item><title>Blog: CloudWeGo Open Source Announcement</title><link>/blog/2021/09/13/cloudwego-open-source-announcement/</link><pubDate>Mon, 13 Sep 2021 00:00:00 +0000</pubDate><guid>/blog/2021/09/13/cloudwego-open-source-announcement/</guid><description>
 &lt;h2 id="background">Background&lt;/h2>
 &lt;p>ByteDance is proud to announce the launch of open source software &lt;a href="https://github.com/cloudwego">CloudWeGo&lt;/a>. Focusing on microservice communication and governance, it offers high performance, strong extensibility, and high reliability which enables quick construction of an enterprise-level cloud native architecture.&lt;/p>

@@ -1,77 +1,180 @@
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>CloudWeGo – CloudWeGo</title><link>/zh/</link><description>Recent content on CloudWeGo</description><generator>Hugo -- gohugo.io</generator><atom:link href="/zh/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: 字节跳动开源内部微服务中间件 CloudWeGo</title><link>/zh/blog/2021/09/07/%E5%AD%97%E8%8A%82%E8%B7%B3%E5%8A%A8%E5%BC%80%E6%BA%90%E5%86%85%E9%83%A8%E5%BE%AE%E6%9C%8D%E5%8A%A1%E4%B8%AD%E9%97%B4%E4%BB%B6-cloudwego/</link><pubDate>Tue, 07 Sep 2021 00:00:00 +0000</pubDate><guid>/zh/blog/2021/09/07/%E5%AD%97%E8%8A%82%E8%B7%B3%E5%8A%A8%E5%BC%80%E6%BA%90%E5%86%85%E9%83%A8%E5%BE%AE%E6%9C%8D%E5%8A%A1%E4%B8%AD%E9%97%B4%E4%BB%B6-cloudwego/</guid><description>
-&lt;h2 id="开源背景">开源背景&lt;/h2>
-&lt;p>&lt;a href="https://github.com/cloudwego">CloudWeGo&lt;/a> 是一套由字节跳动开源的、以 Go 语言为核心的、可快速构建企业级云原生架构的中间件集合，专注于微服务通信与治理，具备高性能、可扩展、高可靠的特点。&lt;/p>
-&lt;p>字节跳动内部使用 Golang 作为主要的业务开发语言，我们支持着数万个 Golang 微服务的可靠通信，经过数量众多的微服务和海量流量的验证，我们已经有了较为成熟的微服务最佳实践，于是考虑将内部的实践开源出去丰富社区生态。但微服务相关的项目较多，每个项目单独开源对外部用户并不友好，为了更好地让大家聚焦于微服务，我们以 CloudWeGo 作为项目名，逐步将内部微服务体系的项目开源，内外统一使用开源库，各项目以开源库为主进行迭代。&lt;/p>
-&lt;p>内外维护一套代码，统一迭代演进，是我们开源前明确的原则，但毕竟涉及到代码库的调整，我们要保证内部用户尽可能无感知的迁移到开源库，本着对内部和开源用户负责的态度，我们要先确认内部可以平滑过渡，所以开源时并未对外宣传。让我们欣慰的是，在未宣传的情况下，一个月内 Kitex 收获了 1.2k stars，Netpoll 收获了700+ stars。&lt;/p>
-&lt;p>CloudWeGo 不仅仅是一个对外的开源项目，也是一个真实的超大规模企业级实践项目。&lt;/p>
-&lt;p>我们希望通过 CloudWeGo 丰富云原生社区的 Golang 产品体系，助力其他企业快速构建云原生架构，也希望吸引外部开发者共建，促进面向多元场景支持的演进，丰富产品能力。&lt;/p>
-&lt;p>因为 CloudWeGo 下的项目会依赖很多内部的基础工具库，我们也推动将内部常用的 Golang 基础工具库开源出去，统一在 &lt;a href="https://github.com/bytedance/gopkg">bytedance/gopkg&lt;/a> 维护。&lt;/p>
-&lt;h2 id="cloudwego-开源项目">CloudWeGo 开源项目&lt;/h2>
-&lt;p>CloudWeGo 第一批以 Kitex RPC 框架和 Netpoll 网络库为主开源四个项目。Kitex 和 Netpoll 开源前我们发布过两篇文章 &lt;a href="https://mp.weixin.qq.com/s/Xoaoiotl7ZQoG2iXo9_DWg">字节跳动 Go RPC 框架 Kitex 性能优化实践&lt;/a> 和 &lt;a href="https://mp.weixin.qq.com/s?__biz=MzI1MzYzMjE0MQ==&amp;amp;mid=2247485756&amp;amp;idx=1&amp;amp;sn=4d2712e4bfb9be27a790fa15159a7be1&amp;amp;chksm=e9d0c2dedea74bc8179af39888a5b2b99266587cad32744ad11092b91ec2e2babc74e69090e6&amp;amp;scene=21#wechat_redirect">字节跳动在 Go 网络库上的实践&lt;/a> 分享我们的实践，文章发布后大家都在关注我们什么时候开源，因为我们希望将成熟的实践开源出去，所以没有过早的推动开源。&lt;/p>
-&lt;h3 id="kitex">Kitex&lt;/h3>
-&lt;p>Kitex 是字节跳动内部的 Golang 微服务 RPC 框架，具有高性能、强可扩展的主要特点。在 Kitex 之前内部的 Golang 框架是 Kite，但 Kite 与 Thrift 深度耦合、生成代码逻辑重，很难从网络模型或编解码层面改造优化，继续支持新特性势必会造成代码越发臃肿迭代受阻问题，于是我们针对曾经的痛点设计了新的框架 Kitex。虽然 Kitex 是新框架，但已经在线上应用一年多，目前字节内部超过 50% 的 Golang 微服务使用 Kitex。&lt;/p>
-&lt;p>以下简述 Kitex 的一些特性：&lt;/p>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>CloudWeGo – CloudWeGo</title><link>/zh/</link><description>Recent content on CloudWeGo</description><generator>Hugo -- gohugo.io</generator><atom:link href="/zh/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: 字节跳动在 Go 网络库上的实践</title><link>/zh/blog/2021/10/09/%E5%AD%97%E8%8A%82%E8%B7%B3%E5%8A%A8%E5%9C%A8-go-%E7%BD%91%E7%BB%9C%E5%BA%93%E4%B8%8A%E7%9A%84%E5%AE%9E%E8%B7%B5/</link><pubDate>Sat, 09 Oct 2021 00:00:00 +0000</pubDate><guid>/zh/blog/2021/10/09/%E5%AD%97%E8%8A%82%E8%B7%B3%E5%8A%A8%E5%9C%A8-go-%E7%BD%91%E7%BB%9C%E5%BA%93%E4%B8%8A%E7%9A%84%E5%AE%9E%E8%B7%B5/</guid><description>
+&lt;blockquote>
+&lt;p>本文选自“字节跳动基础架构实践”系列文章。&lt;/p>
+&lt;p>“字节跳动基础架构实践”系列文章是由字节跳动基础架构部门各技术团队及专家倾力打造的技术干货内容，和大家分享团队在基础架构发展和演进过程中的实践经验与教训，与各位技术同学一起交流成长。&lt;/p>
+&lt;p>RPC 框架作为研发体系中重要的一环，承载了几乎所有的服务流量。本文将简单介绍字节跳动自研网络库 netpoll 的设计及实践；以及我们实际遇到的问题和解决思路，希望能为大家提供一些参考。&lt;/p>
+&lt;/blockquote>
+&lt;h2 id="前言">前言&lt;/h2>
+&lt;p>字节跳动框架组主要负责公司内 RPC 框架的开发与维护。RPC 框架作为研发体系中重要的一环，承载了几乎所有的服务流量。随着公司内 Go 语言使用越来越广，业务对框架的要求越来越高，而 Go 原生 net 网络库却无法提供足够的性能和控制力，如无法感知连接状态、连接数量多导致利用率低、无法控制协程数量等。为了能够获取对于网络层的完全控制权，同时先于业务做一些探索并最终赋能业务，框架组推出了全新的基于 epoll 的自研网络库 —— netpoll，并基于其之上开发了字节内新一代 Golang 框架 Kitex。&lt;/p>
+&lt;p>由于 epoll 原理已有较多文章描述，本文将仅简单介绍 netpoll 的设计；随后，我们会尝试梳理一下我们基于 netpoll 所做的一些实践；最后，我们将分享一个我们遇到的问题，以及我们解决的思路。同时，欢迎对于 Go 语言以及框架感兴趣的同学加入我们！&lt;/p>
+&lt;h2 id="新型网络库设计">新型网络库设计&lt;/h2>
+&lt;h3 id="reactor---事件监听和调度核心">Reactor - 事件监听和调度核心&lt;/h3>
+&lt;p>netpoll 核心是 Reactor 事件监听调度器，主要功能为使用 epoll 监听连接的文件描述符（fd），通过回调机制触发连接上的 读、写、关闭 三种事件。&lt;br>
+&lt;br/>
+&lt;img src="/img/blog/bytedance_gonet_practice_img/reactor.png" alt="image">&lt;/p>
+&lt;h3 id="server---主从-reactor-实现">Server - 主从 Reactor 实现&lt;/h3>
+&lt;p>netpoll 将 Reactor 以 1:N 的形式组合成主从模式。&lt;/p>
+&lt;ol>
+&lt;li>MainReactor 主要管理 Listener，负责监听端口，建立新连接；&lt;/li>
+&lt;li>SubReactor 负责管理 Connection，监听分配到的所有连接，并将所有触发的事件提交到协程池里进行处理。&lt;/li>
+&lt;li>netpoll 在 I/O Task 中引入了主动的内存管理，向上层提供 NoCopy 的调用接口，由此支持 NoCopy RPC。&lt;/li>
+&lt;li>使用协程池集中处理 I/O Task，减少 goroutine 数量和调度开销。&lt;br>
+&lt;br/>
+&lt;img src="/img/blog/bytedance_gonet_practice_img/server_reactor.png" alt="image">&lt;/li>
+&lt;/ol>
+&lt;h3 id="client---共享-reactor-能力">Client - 共享 Reactor 能力&lt;/h3>
+&lt;p>client 端和 server 端共享 SubReactor，netpoll 同样实现了 dialer，提供创建连接的能力。client 端使用上和 net.Conn 相似，netpoll 提供了 write -&amp;gt; wait read callback 的底层支持。&lt;br>
+&lt;br/>
+&lt;img src="/img/blog/bytedance_gonet_practice_img/client_reactor.png" alt="image">&lt;/p>
+&lt;h2 id="nocopy-buffer">Nocopy Buffer&lt;/h2>
+&lt;h3 id="为什么需要-nocopy-buffer-">为什么需要 Nocopy Buffer ?&lt;/h3>
+&lt;p>在上述提及的 Reactor 和 I/O Task 设计中，epoll 的触发方式会影响 I/O 和 buffer 的设计，大体来说分为两种方式：&lt;/p>
+&lt;p>采用水平触发(LT)，则需要同步的在事件触发后主动完成 I/O，并向上层代码直接提供 buffer。
+采用边沿触发(ET)，可选择只管理事件通知(如 go net 设计)，由上层代码完成 I/O 并管理 buffer。
+两种方式各有优缺，netpoll 采用前者策略，水平触发时效性更好，容错率高，主动 I/O 可以集中内存使用和管理，提供 nocopy 操作并减少 GC。事实上一些热门开源网络库也是采用方式一的设计，如 easygo、evio、gnet 等。&lt;/p>
+&lt;p>但使用 LT 也带来另一个问题，即底层主动 I/O 和上层代码并发操作 buffer，引入额外的并发开销。比如：I/O 读数据写 buffer 和上层代码读 buffer 存在并发读写，反之亦然。为了保证数据正确性，同时不引入锁竞争，现有的开源网络库通常采取 同步处理 buffer(easygo, evio) 或者将 buffer 再 copy 一份提供给上层代码(gnet) 等方式，均不适合业务处理或存在 copy 开销。&lt;/p>
+&lt;p>另一方面，常见的 bytes、bufio、ringbuffer 等 buffer 库，均存在 growth 需要 copy 原数组数据，以及只能扩容无法缩容，占用大量内存等问题。因此我们希望引入一种新的 Buffer 形式，一举解决上述两方面的问题。&lt;/p>
+&lt;h3 id="nocopy-buffer-设计和优势">Nocopy Buffer 设计和优势&lt;/h3>
+&lt;p>Nocopy Buffer 基于链表数组实现，如下图所示，我们将 []byte 数组抽象为 block，并以链表拼接的形式将 block 组合为 Nocopy Buffer，同时引入了引用计数、nocopy API 和对象池。&lt;br>
+&lt;br/>
+&lt;img src="/img/blog/bytedance_gonet_practice_img/buffer.png" alt="image">&lt;br>
+&lt;br/>
+Nocopy Buffer 相比常见的 bytes、bufio、ringbuffer 等有以下优势：&lt;/p>
+&lt;ol>
+&lt;li>读写并行无锁，支持 nocopy 地流式读写
 &lt;ul>
-&lt;li>
-&lt;p>高性能：网络传输模块 Kitex 默认集成了自研的网络库 Netpoll，性能相较使用 go net 有显著优势；除了网络库带来的性能收益，Kitex 对 Thrift 编解码也做了优化，详见 &lt;a href="https://mp.weixin.qq.com/s/Xoaoiotl7ZQoG2iXo9_DWg">优化实践&lt;/a>。关于性能数据可参考 &lt;a href="https://github.com/cloudwego/kitex-benchmark">kitex-benchmark&lt;/a>。&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>扩展性：Kitex 设计上做了模块划分，提供了较多的扩展接口以及默认的扩展实现，使用者也可以根据需要自行定制扩展，更多扩展能力参见 &lt;a href="https://www.cloudwego.io/zh/docs/tutorials/framework-exten/">文档&lt;/a>。Kitex 也并未耦合 Netpoll，开发者也可以选择其它网络库扩展使用。&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>消息协议：RPC 消息协议默认支持 Thrift、Kitex Protobuf、gRPC。Thrift 支持 Buffered 和 Framed 二进制协议；Kitex Protobuf 是 Kitex 自定义的 Protobuf 消息协议，协议格式类似 Thrift；gRPC 是对 gRPC 消息协议的支持，可以与 gRPC 互通。除此之外，使用者也可以扩展自己的消息协议。&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>传输协议：传输协议封装消息协议进行 RPC 互通，传输协议可以额外透传元信息，用于服务治理，Kitex 支持的传输协议有 TTHeader、HTTP2。TTHeader 可以和 Thrift、Kitex Protobuf 结合使用；HTTP2 目前主要是结合 gRPC 协议使用，后续也会支持 Thrift。&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>多消息类型：支持 PingPong、Oneway、双向 Streaming。其中 Oneway 目前只对 Thrift 协议支持，双向 Streaming 只对 gRPC 支持，后续会考虑支持 Thrift 的双向 Streaming。&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>服务治理：支持服务注册/发现、负载均衡、熔断、限流、重试、监控、链路跟踪、日志、诊断等服务治理模块，大部分均已提供默认扩展，使用者可选择集成。&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Kitex 内置代码生成工具，可支持生成 Thrift、Protobuf 以及脚手架代码。原生的 Thrift 代码由本次一起开源的 Thriftgo 生成，Kitex 对 Thrift 的优化由 Kitex Tool 作为插件支持。Protobuf 代码由 Kitex 作为官方 protoc 插件生成 ，目前暂未单独支持 Protobuf IDL 的解析和代码生成。&lt;/p>
-&lt;/li>
+&lt;li>读写分别操作头尾指针，相互不干扰。&lt;/li>
 &lt;/ul>
-&lt;h3 id="netpoll">Netpoll&lt;/h3>
-&lt;p>Netpoll 是字节跳动内部的 Golang 高性能、I/O 非阻塞的网络库，专注于 RPC 场景。&lt;/p>
-&lt;p>RPC 通常有较重的处理逻辑（业务逻辑、编解码），耗时长，不能像 Redis 一样采用串行处理(必须异步)。而 Go 的标准库 net 设计了 BIO(Blocking I/O) 模式的 API，为了保证异步处理，RPC 框架设计上需要为每个连接都分配一个 goroutine，这在空闲连接较多时，产生大量的空闲 goroutine，增加调度开销。此外，&lt;a href="https://github.com/golang/go/blob/master/src/net/net.go">net.Conn&lt;/a> 没有提供检查连接活性的 API，很难设计出高效的连接池，池中的失效连接无法及时清理，复用低效。&lt;/p>
-&lt;p>开源社区目前缺少专注于 RPC 方案的 Go 网络库。类似的项目如：&lt;a href="https://github.com/tidwall/evio">evio&lt;/a> , &lt;a href="https://github.com/panjf2000/gnet">gnet&lt;/a> 等，均面向 Redis, Haproxy 这样的场景。&lt;/p>
-&lt;p>因此 Netpoll 应运而生，它借鉴了 evio 和 Netty 的优秀设计，具有出色的 &lt;a href="https://github.com/cloudwego/netpoll/blob/main/README_CN.md#%e6%80%a7%e8%83%bd">性能&lt;/a>，更适用于微服务架构。 同时，Netpoll 还提供了一些 &lt;a href="https://github.com/cloudwego/netpoll/blob/main/README_CN.md#%e7%89%b9%e6%80%a7">特性&lt;/a>，推荐在 RPC 框架中作为底层网络库。&lt;/p>
-&lt;h3 id="thriftgo">Thriftgo&lt;/h3>
-&lt;p>Thriftgo 是 Go 语言实现的 Thrift IDL 解析和代码生成器，支持完善的 Thrift IDL 语法和语义检查，相较 Apache Thrift 官方的 Golang 生成代码，Thriftgo 做了一些问题修复且支持插件机制，用户可根据需求自定义生成代码。&lt;/p>
-&lt;p>Kitex 的代码生成工具就是 Thriftgo 的插件，CloudWeGo 近期也会开源另一个 Thriftgo 的插件 thrift-gen-validator，支持 IDL Validator，用于字段值校验，解决开发者需要自行实现代码校验逻辑的负担，弥补 Thrift 缺失的能力。&lt;/p>
-&lt;p>Thriftgo 目前虽然仅支持生成 Golang Thrift 代码，但其定位是可支持各语言的 Thrift 代码生成，未来如果有需求，我们也会考虑生成其他语言的代码，同时我们也将尝试将其回馈至 Apache Thrift 社区。&lt;/p>
-&lt;h3 id="netpoll-http2">Netpoll-http2&lt;/h3>
-&lt;p>Netpoll-http2 是基于 Golang 标准库 golang.org/x/net/http2 的源码替换 go net 为 Netpoll，目前用于 Kitex 对 gRPC 协议的支持，对 HTTP2 有需求的外部开发者也可以使用此库。&lt;/p>
-&lt;h2 id="内外版本维护">内外版本维护&lt;/h2>
-&lt;p>完整的微服务体系离不开基础的云生态，无论在公有云、私有云还是基于自己的基础设施开发微服务，都需要搭建额外的服务以很好的支持微服务的治理，比如治理平台、监控、链路跟踪、注册/发现、配置中心、服务网格等，而且还存在一些定制的规范。字节跳动自然也有完善的内部服务支持微服务体系，但这些服务短期还无法开源，那 CloudWeGo 如何内外维护一套代码，统一迭代呢？&lt;/p>
-&lt;p>CloudWeGo 下与内部生态没有耦合的项目，如 Netpoll，直接迁移到开源库，内部依赖调整为开源库。&lt;/p>
-&lt;p>而需要集成治理能力融入微服务体系的 Kitex 则基于其扩展性，将内外部的代码做了拆分，Kitex 的核心代码迁移到开源库，内部库封装一层壳保证内部用户无感知升级。集成内部治理特性的模块则作为 Kitex 的扩展保留在内部库，同时对于一些新的特性也会优先在内部库支持，稳定后迁移到开源库。&lt;/p>
-&lt;p>对于使用 Kitex 的开源用户，同样可以对 Kitex 进行扩展，将 Kitex 融入自己的微服务体系中，也希望开发者能贡献自己的扩展到 &lt;a href="https://github.com/kitex-contrib">kitex-contrib&lt;/a>，为更多用户提供便利。&lt;/p>
-&lt;h2 id="未来展望">未来展望&lt;/h2>
-&lt;p>&lt;strong>继续开源其他内部项目&lt;/strong>&lt;/p>
+&lt;/li>
+&lt;li>高效扩缩容
 &lt;ul>
-&lt;li>我们会继续开源其他内部项目，如 HTTP 框架 Hertz、基于共享内存的 IPC 通信库 ShmIPC 等，提供更多场景的微服务需求支持。&lt;/li>
+&lt;li>扩容阶段，直接在尾指针后添加新的 block 即可，无需 copy 原数组。&lt;/li>
+&lt;li>缩容阶段，头指针会直接释放使用完毕的 block 节点，完成缩容。每个 block 都有独立的引用计数，当释放的 block 不再有引用时，主动回收 block 节点。&lt;/li>
 &lt;/ul>
-&lt;p>&lt;strong>逐步开源经验证的、稳定的特性&lt;/strong>&lt;/p>
+&lt;/li>
+&lt;li>灵活切片和拼接 buffer (链表特性)
 &lt;ul>
-&lt;li>CloudWeGo 的主要项目均为字节内部微服务提供支持，新的特性通常会在内部验证，相对成熟后我们会逐步开源出去，比如对 ShmIPC 的集成、无序列化、无生成代码的支持等等。&lt;/li>
+&lt;li>支持任意读取分段(nocopy)，上层代码可以 nocopy 地并行处理数据流分段，无需关心生命周期，通过引用计数 GC。&lt;/li>
+&lt;li>支持任意拼接(nocopy)，写 buffer 支持通过 block 拼接到尾指针后的形式，无需 copy，保证数据只写一次。&lt;/li>
 &lt;/ul>
-&lt;p>&lt;strong>结合内外部用户需求，持续迭代&lt;/strong>&lt;/p>
+&lt;/li>
+&lt;li>Nocopy Buffer 池化，减少 GC
 &lt;ul>
-&lt;li>
-&lt;p>CloudWeGo 开源后除向内部提供支持外，我们也希望 CloudWeGo 能为外部用户提供良好的支持，帮助大家快速搭建自己的微服务体系，所以我们会面向内外部用户迭代。&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>就开源一个月的反馈看，大家对 Protobuf 的诉求较为强烈。坦诚来说 Kitex 虽然支持多协议，但字节内部 RPC 通信协议是 Thrift，对 Protobuf 无论是 Kitex Protobuf 还是兼容 gRPC 更多的是支持少部分内部用户的需求，所以暂时未开展性能优化，生成代码也是直接使用 Protobuf 官方的二进制（gogo/protobuf 是基于生成代码优化 Protobuf 序列化性能的优秀开源库，但很遗憾该库目前是停止维护状态，所以 Kitex 并未选择 gogo），但鉴于大家强烈的诉求，我们会计划开展 Kitex 对 Protobuf 支持的性能优化。&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>欢迎大家向 CloudWeGo 提交 issue 和 PR 共建 CloudWeGo，我们诚心期待更多的开发者加入，也期待 CloudWeGo 助力越来越多的企业快速构建云原生架构。如果企业客户想内部试用，我们可以排期提供专项技术支持和交流，欢迎入群咨询。&lt;/p>
-&lt;/li>
+&lt;li>将每个 []byte 数组视为 block 节点，构建对象池维护空闲 block，由此复用 block，减少内存占用和 GC。
+基于该 Nocopy Buffer，我们实现了 Nocopy Thrift，使得编解码过程内存零分配零拷贝。&lt;/li>
 &lt;/ul>
-&lt;p>&lt;img src="/img/blog/LarkGroup.png" alt="!image">&lt;/p></description></item><item><title>Blog: 字节跳动 Go RPC 框架 Kitex 性能优化实践</title><link>/zh/blog/2021/09/23/%E5%AD%97%E8%8A%82%E8%B7%B3%E5%8A%A8-go-rpc-%E6%A1%86%E6%9E%B6-kitex-%E6%80%A7%E8%83%BD%E4%BC%98%E5%8C%96%E5%AE%9E%E8%B7%B5/</link><pubDate>Thu, 23 Sep 2021 00:00:00 +0000</pubDate><guid>/zh/blog/2021/09/23/%E5%AD%97%E8%8A%82%E8%B7%B3%E5%8A%A8-go-rpc-%E6%A1%86%E6%9E%B6-kitex-%E6%80%A7%E8%83%BD%E4%BC%98%E5%8C%96%E5%AE%9E%E8%B7%B5/</guid><description>
+&lt;/li>
+&lt;/ol>
+&lt;h2 id="连接多路复用">连接多路复用&lt;/h2>
+&lt;p>RPC 调用通常采用短连接或者长连接池的形式，一次调用绑定一个连接，那么当上下游规模很大的情况下，网络中存在的连接数以 MxN 的速度扩张，带来巨大的调度压力和计算开销，给服务治理造成困难。因此，我们希望引入一种 &amp;ldquo;在单一长连接上并行处理调用&amp;rdquo; 的形式，来减少网络中的连接数，这种方案即称为 &amp;ldquo;连接多路复用&amp;rdquo;。&lt;/p>
+&lt;p>当前业界也存在一些开源的连接多路复用方案，掣肘于代码层面的束缚，这些方案均需要 copy buffer 来实现数据分包和合并，导致实际性能并不理想。而上述 Nocopy Buffer 基于其灵活切片和拼接的特性，很好的支持了 nocopy 的数据分包和合并，使得实现高性能连接多路复用方案成为可能。&lt;/p>
+&lt;p>基于 netpoll 的连接多路复用设计如下图所示，我们将 Nocopy Buffer(及其分片) 抽象为虚拟连接，使得上层代码保持同 net.Conn 相同的调用体验。与此同时，在底层代码上通过协议分包将真实连接上的数据灵活的分配到虚拟连接上；或通过协议编码合并发送虚拟连接数据。&lt;br>
+&lt;br/>
+&lt;img src="/img/blog/bytedance_gonet_practice_img/client_server.png" alt="image"> &lt;br>
+&lt;br/>
+连接多路复用方案包含以下核心要素：&lt;/p>
+&lt;ol>
+&lt;li>
+&lt;p>虚拟连接&lt;/p>
+&lt;ul>
+&lt;li>实质上是 Nocopy Buffer，目的是替换真正的连接，规避内存 copy。&lt;/li>
+&lt;li>上层的业务逻辑/编解码 均在虚拟连接上完成，上层逻辑可以异步独立并行执行。&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>
+&lt;p>Shared map&lt;/p>
+&lt;ul>
+&lt;li>引入分片锁来减少锁力度。&lt;/li>
+&lt;li>在调用端使用 sequence id 来标记请求，并使用分片锁存储 id 对应的回调。&lt;/li>
+&lt;li>在接收响应数据后，根据 sequence id 来找到对应回调并执行。&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>
+&lt;p>协议分包和编码&lt;/p>
+&lt;ul>
+&lt;li>如何识别完整的请求响应数据包是连接多路复用方案可行的关键，因此需要引入协议。&lt;/li>
+&lt;li>这里采用 thrift header protocol 协议，通过消息头判断数据包完整性，通过 sequence id 标记请求和响应的对应关系。&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;/ol>
+&lt;h2 id="zerocopy">ZeroCopy&lt;/h2>
+&lt;p>这里所说的 ZeroCopy，指的是 Linux 所提供的 ZeroCopy 的能力。上一章中我们说了业务层的零拷贝，而众所周知，当我们调用 sendmsg 系统调用发包的时候，实际上仍然是会产生一次数据的拷贝的，并且在大包场景下这个拷贝的消耗非常明显。以 100M 为例，perf 可以看到如下结果： &lt;br/>&lt;br>
+&lt;img src="/img/blog/bytedance_gonet_practice_img/perf.png" alt="image">&lt;br>
+&lt;br/>
+这还仅仅是普通 tcp 发包的占用，在我们的场景下，大部分服务都会接入 Service Mesh，所以在一次发包中，一共会有 3 次拷贝：业务进程到内核、内核到 sidecar、sidecar 再到内核。这使得有大包需求的业务，拷贝所导致的 cpu 占用会特别明显，如下图：&lt;br>
+&lt;br/>
+&lt;img src="/img/blog/bytedance_gonet_practice_img/cpu.png" alt="image">&lt;br>
+&lt;br/>
+为了解决这个问题，我们选择了使用 Linux 提供的 ZeroCopy API（在 4.14 以后支持 send；5.4 以后支持 receive）。但是这引入了一个额外的工程问题：ZeroCopy send API 和原先调用方式不兼容，无法很好地共存。这里简单介绍一下 ZeroCopy send 的工作方式：业务进程调用 sendmsg 之后，sendmsg 会记录下 iovec 的地址并立即返回，这时候业务进程不能释放这段内存，需要通过 epoll 等待内核回调一个信号表明某段 iovec 已经发送成功之后才能释放。由于我们并不希望更改业务方的使用方法，需要对上层提供同步收发的接口，所以很难基于现有的 API 同时提供 ZeroCopy 和非 ZeroCopy 的抽象；而由于 ZeroCopy 在小包场景下是有性能损耗的，所以也不能将这个作为默认的选项。&lt;/p>
+&lt;p>于是，字节跳动框架组和字节跳动内核组合作，由内核组提供了同步的接口：当调用 sendmsg 的时候，内核会监听并拦截内核原先给业务的回调，并且在回调完成后才会让 sendmsg 返回。这使得我们无需更改原有模型，可以很方便地接入 ZeroCopy send。同时，字节跳动内核组还实现了基于 unix domain socket 的 ZeroCopy，可以使得业务进程与 Mesh sidecar 之间的通信也达到零拷贝。&lt;/p>
+&lt;p>在使用了 ZeroCopy send 后，perf 可以看到内核不再有 copy 的占用：&lt;br>
+&lt;br/>
+&lt;img src="/img/blog/bytedance_gonet_practice_img/perf2.png" alt="image">&lt;br>
+&lt;br/>
+从 cpu 占用数值上看，大包场景下 ZeroCopy 能够比非 ZeroCopy 节省一半的 cpu。&lt;/p>
+&lt;h2 id="go-调度导致的延迟问题分享">Go 调度导致的延迟问题分享&lt;/h2>
+&lt;p>在我们实践过程中，发现我们新写的 netpoll 虽然在 avg 延迟上表现胜于 Go 原生的 net 库，但是在 p99 和 max 延迟上要普遍略高于 Go 原生的 net 库，并且尖刺也会更加明显，如下图（Go 1.13，蓝色为 netpoll + 多路复用，绿色为 netpoll + 长连接，黄色为 net 库 + 长连接）：&lt;br>
+&lt;br/>
+&lt;img src="/img/blog/bytedance_gonet_practice_img/delay.png" alt="image">&lt;br>
+&lt;br/>
+我们尝试了很多种办法去优化，但是收效甚微。最终，我们定位出这个延迟并非是由于 netpoll 本身的开销导致的，而是由于 go 的调度导致的，比如说：&lt;/p>
+&lt;ol>
+&lt;li>由于在 netpoll 中，SubReactor 本身也是一个 goroutine，受调度影响，不能保证 EpollWait 回调之后马上执行，所以这一块会有延迟；&lt;/li>
+&lt;li>同时，由于用来处理 I/O 事件的 SubReactor 和用来处理连接监听的 MainReactor 本身也是 goroutine，所以实际上很难保证在多核情况之下，这些 Reactor 能并行执行；甚至在最极端情况之下，可能这些 Reactor 会挂在同一个 P 下，最终变成了串行执行，无法充分利用多核优势；&lt;/li>
+&lt;li>由于 EpollWait 回调之后，SubReactor 内是串行处理 I/O 事件的，导致排在最后的事件可能会有长尾问题；&lt;/li>
+&lt;li>在连接多路复用场景下，由于每个连接绑定了一个 SubReactor，故延迟完全取决于这个 SubReactor 的调度，导致尖刺会更加明显。
+由于 Go 在 runtime 中对于 net 库有做特殊优化，所以 net 库不会有以上情况；同时 net 库是 goroutine-per-connection 的模型，所以能确保请求能并行执行而不会相互影响。&lt;/li>
+&lt;/ol>
+&lt;p>对于以上这个问题，我们目前解决的思路有两个：&lt;/p>
+&lt;ol>
+&lt;li>修改 Go runtime 源码，在 Go runtime 中注册一个回调，每次调度时调用 EpollWait，把获取到的 fd 传递给回调执行；&lt;/li>
+&lt;li>与字节跳动内核组合作，支持同时批量读/写多个连接，解决串行问题。另外，经过我们的测试，Go 1.14 能够使得延迟略有降低同时更加平稳，但是所能达到的极限 QPS 更低。希望我们的思路能够给业界同样遇到此问题的同学提供一些参考。&lt;/li>
+&lt;/ol>
+&lt;h2 id="后记">后记&lt;/h2>
+&lt;p>希望以上的分享能够对社区有所帮助。同时，我们也在加速建设 netpoll 以及基于 netpoll 的新框架 Kitex。欢迎各位感兴趣的同学加入我们，共同建设 Go 语言生态！&lt;/p>
+&lt;h2 id="参考资料">参考资料&lt;/h2>
+&lt;ul>
+&lt;li>&lt;a href="http://man7.org/linux/man-pages/man7/epoll.7.html">http://man7.org/linux/man-pages/man7/epoll.7.html&lt;/a>&lt;/li>
+&lt;li>&lt;a href="https://golang.org/src/runtime/proc.go">https://golang.org/src/runtime/proc.go&lt;/a>&lt;/li>
+&lt;li>&lt;a href="https://github.com/panjf2000/gnet">https://github.com/panjf2000/gnet&lt;/a>&lt;/li>
+&lt;li>&lt;a href="https://github.com/tidwall/evio">https://github.com/tidwall/evio&lt;/a>&lt;/li>
+&lt;/ul></description></item><item><title>Blog: Kitex v0.0.5 版本发布</title><link>/zh/blog/2021/09/26/kitex-v0.0.5-%E7%89%88%E6%9C%AC%E5%8F%91%E5%B8%83/</link><pubDate>Sun, 26 Sep 2021 00:00:00 +0000</pubDate><guid>/zh/blog/2021/09/26/kitex-v0.0.5-%E7%89%88%E6%9C%AC%E5%8F%91%E5%B8%83/</guid><description>
+&lt;h2 id="功能">功能:&lt;/h2>
+&lt;ul>
+&lt;li>增加默认的 ErrorHandler 封装 Error（用户指定会被覆盖）。&lt;/li>
+&lt;li>metainfo 支持反向传递。&lt;/li>
+&lt;li>支持了 JSON 泛化调用，使用指南可参考：&lt;a href="https://www.cloudwego.io/zh/docs/tutorials/advanced-feature/generic_call/">Kitex 泛化调用使用指南&lt;/a>。&lt;/li>
+&lt;/ul>
+&lt;h2 id="优化">优化:&lt;/h2>
+&lt;ul>
+&lt;li>多路复用场景下使用了新的 netpoll API 来改善吞吐和延迟。&lt;/li>
+&lt;li>多路复用场景下支持 metainfo 的正向和反向传递。&lt;/li>
+&lt;li>Client 会在需要的时候默认使用 RPCTimeout 中间件。&lt;/li>
+&lt;li>连接池配置增加全局空闲连接和单实例空闲连接合法性校验。&lt;/li>
+&lt;li>当更新 QPS 最大限制时会重置计数器。&lt;/li>
+&lt;li>减小 QPS 限流的误差。&lt;/li>
+&lt;/ul>
+&lt;h2 id="bug-修复">Bug 修复:&lt;/h2>
+&lt;ul>
+&lt;li>修复 WithExitWaitTime 没有正确设置退出等待时间的问题。&lt;/li>
+&lt;li>修复更新 QPS 限制器更新间隔时，协程泄漏的问题。&lt;/li>
+&lt;li>服务注册使用真实监听的地址。&lt;/li>
+&lt;/ul>
+&lt;h2 id="工具">工具:&lt;/h2>
+&lt;ul>
+&lt;li>修复了当 protobuf 文件只有 unary 方法时，生成出错的问题。&lt;/li>
+&lt;/ul>
+&lt;h2 id="文档">文档:&lt;/h2>
+&lt;ul>
+&lt;li>提供了英文版的README和其他文档。&lt;/li>
+&lt;li>补充了泛化调用手册： &lt;a href="https://www.cloudwego.io/docs/tutorials/advanced-feature/generic_call/">English&lt;/a> | &lt;a href="https://www.cloudwego.io/zh/docs/tutorials/advanced-feature/generic_call/">中文&lt;/a>。&lt;/li>
+&lt;li>README 中增加了 landsapce 和 roadmap。&lt;/li>
+&lt;/ul>
+&lt;h2 id="依赖变化">依赖变化:&lt;/h2>
+&lt;ul>
+&lt;li>github.com/cloudwego/netpoll: v0.0.3 -&amp;gt; v0.0.4&lt;/li>
+&lt;li>github.com/bytedance/gopkg: v0.0.0-20210709064845-3c00f9323f09 -&amp;gt; v0.0.0-20210910103821-e4efae9c17c3&lt;/li>
+&lt;/ul></description></item><item><title>Blog: 字节跳动 Go RPC 框架 Kitex 性能优化实践</title><link>/zh/blog/2021/09/23/%E5%AD%97%E8%8A%82%E8%B7%B3%E5%8A%A8-go-rpc-%E6%A1%86%E6%9E%B6-kitex-%E6%80%A7%E8%83%BD%E4%BC%98%E5%8C%96%E5%AE%9E%E8%B7%B5/</link><pubDate>Thu, 23 Sep 2021 00:00:00 +0000</pubDate><guid>/zh/blog/2021/09/23/%E5%AD%97%E8%8A%82%E8%B7%B3%E5%8A%A8-go-rpc-%E6%A1%86%E6%9E%B6-kitex-%E6%80%A7%E8%83%BD%E4%BC%98%E5%8C%96%E5%AE%9E%E8%B7%B5/</guid><description>
 &lt;h2 id="前言">前言&lt;/h2>
 &lt;p>Kitex 是字节跳动框架组研发的下一代高性能、强可扩展性的 Go RPC 框架。除具备丰富的服务治理特性外，相比其他框架还有以下特点：集成了自研的网络库 Netpoll；支持多消息协议（Thrift、Protobuf）和多交互方式（Ping-Pong、Oneway、 Streaming）；提供了更加灵活可扩展的代码生成器。&lt;/p>
 &lt;p>目前公司内主要业务线都已经大范围使用 Kitex，据统计当前接入服务数量多达 8k。Kitex 推出后，我们一直在不断地优化性能，本文将分享我们在 Netpoll 和 序列化方面的优化工作。&lt;/p>
@@ -189,17 +292,25 @@
 &lt;h3 id="调研">调研&lt;/h3>
 &lt;p>根据 go_serialization_benchmarks 的压测数据，我们找到了一些性能卓越的序列化方案进行调研，希望能够对我们的优化工作有所启发。&lt;/p>
 &lt;p>通过对 protobuf、gogoprotobuf 和 Cap&amp;rsquo;n Proto 的分析，我们得出以下结论：&lt;/p>
+&lt;ul>
+&lt;li>
 &lt;p>网络传输中出于 IO 的考虑，都会尽量压缩传输数据，protobuf 采用了 Varint 编码在大部分场景中都有着不错的压缩效果；&lt;/p>
+&lt;/li>
+&lt;li>
 &lt;p>gogoprotobuf 采用预计算方式，在序列化时能够减少内存分配次数，进而减少了内存分配带来的系统调用、锁和 GC 等代价；&lt;/p>
+&lt;/li>
+&lt;li>
 &lt;p>Cap&amp;rsquo;n Proto 直接操作 buffer，也是减少了内存分配和内存拷贝（少了中间的数据结构），并且在 struct pointer 的设计中把固定长度类型数据和非固定长度类型数据分开处理，针对固定长度类型可以快速处理；&lt;/p>
+&lt;/li>
+&lt;/ul>
 &lt;p>从兼容性考虑，不可能改变现有的 TLV 编码格式，因此数据压缩不太现实，但是 2 和 3 对我们的优化工作是有启发的，事实上我们也是采取了类似的思路。&lt;/p>
 &lt;h3 id="思路">思路&lt;/h3>
 &lt;h4 id="减少内存操作">减少内存操作&lt;/h4>
-&lt;h5 id="buffer-管理">buffer 管理&lt;/h5>
+&lt;p>&lt;strong>buffer 管理&lt;/strong>&lt;/p>
 &lt;p>无论是序列化还是反序列化，都是从一块内存拷贝数据到另一块内存，这就涉及到内存分配和内存拷贝操作，尽量避免内存操作可以减少不必要的系统调用、锁和 GC 等开销。&lt;/p>
 &lt;p>事实上 Kitex 已经提供了 LinkBuffer 用于 buffer 的管理，LinkBuffer 设计上采用链式结构，由多个 block 组成，其中 block 是大小固定的内存块，构建对象池维护空闲 block，由此复用 block，减少内存占用和 GC。&lt;/p>
 &lt;p>刚开始我们简单地采用 sync.Pool 来复用 netpoll 的 LinkBufferNode，但是这样仍然无法解决对于大包场景下的内存复用（大的 Node 不能回收，否则会导致内存泄漏）。目前我们改成了维护一组 sync.Pool，每组中的 buffer size 都不同，新建 block 时根据最接近所需 size 的 pool 中去获取，这样可以尽可能复用内存，从测试来看内存分配和 GC 优化效果明显。&lt;/p>
-&lt;h5 id="string--binary-零拷贝">string / binary 零拷贝&lt;/h5>
+&lt;p>&lt;strong>string / binary 零拷贝&lt;/strong>&lt;/p>
 &lt;p>对于有一些业务，比如视频相关的业务，会在请求或者返回中有一个很大的 Binary 二进制数据代表了处理后的视频或者图片数据，同时会有一些业务会返回很大的 String（如全文信息等）。这种场景下，我们通过火焰图看到的热点都在数据的 copy 上，那我们就想了，我们是否可以减少这种拷贝呢？&lt;/p>
 &lt;p>答案是肯定的。既然我们底层使用的 Buffer 是个链表，那么就可以很容易地在链表中间插入一个节点。&lt;/p>
 &lt;p>&lt;img src="/img/blog/buffer-linkerd-list.png" alt="!image">&lt;/p>
@@ -214,22 +325,42 @@
 &lt;span style="color:#000;font-weight:bold">}))&lt;/span>
 &lt;span style="color:#000;font-weight:bold">}&lt;/span>
 &lt;/code>&lt;/pre>&lt;/div>&lt;p>这段代码的意思是，先把 string 的地址拿到，再拼装上一个 slice byte 的 header，这样就可以不拷贝数据而将 string 转换成 []byte 了，不过要注意这样生成的 []byte 不可写，否则行为未定义。&lt;/p>
-&lt;h5 id="预计算">预计算&lt;/h5>
-&lt;p>线上存在某些服务有大包传输的场景，这种场景下会引入不小的序列化 / 反序列化开销。一般大包都是容器类型的大小非常大导致的，如果能够提前计算出 buffer，一些 O(n) 的操作就能降到 O(1)，减少了函数调用次数，在大包场景下也大量减少了内存分配的次数，带来的收益是可观的。&lt;/p>
-&lt;p>&lt;strong>基本类型&lt;/strong>&lt;/p>
-&lt;p>如果容器元素为基本类型（bool, byte, i16, i32, i64, double）的话，由于基本类型大小固定，在序列化时是可以提前计算出总的大小，并且一次性分配足够的 buffer，O(n) 的 malloc 操作次数可以降到 O(1)，从而大量减少了 malloc 的次数，同理在反序列化时可以减少 next 的操作次数。&lt;/p>
-&lt;p>&lt;strong>struct 字段重排&lt;/strong>&lt;/p>
+&lt;p>&lt;strong>预计算&lt;/strong>
+线上存在某些服务有大包传输的场景，这种场景下会引入不小的序列化 / 反序列化开销。一般大包都是容器类型的大小非常大导致的，如果能够提前计算出 buffer，一些 O(n) 的操作就能降到 O(1)，减少了函数调用次数，在大包场景下也大量减少了内存分配的次数，带来的收益是可观的。&lt;/p>
+&lt;ul>
+&lt;li>
+&lt;p>基本类型&lt;/p>
+&lt;ul>
+&lt;li>如果容器元素为基本类型（bool, byte, i16, i32, i64, double）的话，由于基本类型大小固定，在序列化时是可以提前计算出总的大小，并且一次性分配足够的 buffer，O(n) 的 malloc 操作次数可以降到 O(1)，从而大量减少了 malloc 的次数，同理在反序列化时可以减少 next 的操作次数。&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>
+&lt;p>struct 字段重排&lt;/p>
+&lt;/li>
+&lt;li>
 &lt;p>上面的优化只能针对容器元素类型为基本类型的有效，那么对于元素类型为 struct 的是否也能优化呢？答案是肯定的。&lt;/p>
+&lt;/li>
+&lt;li>
 &lt;p>沿用上面的思路，假如 struct 中如果存在基本类型的 field，也可以预先计算出这些 field 的大小，在序列化时为这些 field 提前分配 buffer，写的时候也把这些 field 顺序统一放到前面写，这样也能在一定程度上减少 malloc 的次数。&lt;/p>
-&lt;p>&lt;strong>一次性计算&lt;/strong>&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>一次性计算&lt;/p>
+&lt;/li>
+&lt;li>
 &lt;p>上面提到的是基本类型的优化，如果在序列化时，先遍历一遍 request 所有 field，便可以计算得到整个 request 的大小，提前分配好 buffer，在序列化和反序列时直接操作 buffer，这样对于非基本类型也能有优化效果。&lt;/p>
+&lt;/li>
+&lt;li>
 &lt;p>定义新的 codec 接口：&lt;/p>
+&lt;/li>
+&lt;/ul>
 &lt;div class="highlight">&lt;pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-go" data-lang="go">&lt;span style="color:#204a87;font-weight:bold">type&lt;/span> &lt;span style="color:#000">thriftMsgFastCodec&lt;/span> &lt;span style="color:#204a87;font-weight:bold">interface&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>
 &lt;span style="color:#000">BLength&lt;/span>&lt;span style="color:#000;font-weight:bold">()&lt;/span> &lt;span style="color:#204a87;font-weight:bold">int&lt;/span> &lt;span style="color:#8f5902;font-style:italic">// count length of whole req/resp
 &lt;/span>&lt;span style="color:#8f5902;font-style:italic">&lt;/span> &lt;span style="color:#000">FastWrite&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">buf&lt;/span> &lt;span style="color:#000;font-weight:bold">[]&lt;/span>&lt;span style="color:#204a87;font-weight:bold">byte&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#204a87;font-weight:bold">int&lt;/span>
 &lt;span style="color:#000">FastRead&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">buf&lt;/span> &lt;span style="color:#000;font-weight:bold">[]&lt;/span>&lt;span style="color:#204a87;font-weight:bold">byte&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#204a87;font-weight:bold">int&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#204a87;font-weight:bold">error&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span>
 &lt;span style="color:#000;font-weight:bold">}&lt;/span>
-&lt;/code>&lt;/pre>&lt;/div>&lt;p>在 Marshal 和 Unmarshal 接口中做相应改造：&lt;/p>
+&lt;/code>&lt;/pre>&lt;/div>&lt;ul>
+&lt;li>在 Marshal 和 Unmarshal 接口中做相应改造：&lt;/li>
+&lt;/ul>
 &lt;div class="highlight">&lt;pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-go" data-lang="go">&lt;span style="color:#204a87;font-weight:bold">func&lt;/span> &lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">c&lt;/span> &lt;span style="color:#000">thriftCodec&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#000">Marshal&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">ctx&lt;/span> &lt;span style="color:#000">context&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">Context&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">message&lt;/span> &lt;span style="color:#000">remote&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">Message&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">out&lt;/span> &lt;span style="color:#000">remote&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">ByteBuffer&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#204a87;font-weight:bold">error&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>
 &lt;span style="color:#ce5c00;font-weight:bold">...&lt;/span>
 &lt;span style="color:#204a87;font-weight:bold">if&lt;/span> &lt;span style="color:#000">msg&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">ok&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">:=&lt;/span> &lt;span style="color:#000">data&lt;/span>&lt;span style="color:#000;font-weight:bold">.(&lt;/span>&lt;span style="color:#000">thriftMsgFastCodec&lt;/span>&lt;span style="color:#000;font-weight:bold">);&lt;/span> &lt;span style="color:#000">ok&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>
@@ -268,7 +399,9 @@
 &lt;span style="color:#000;font-weight:bold">}&lt;/span>
 &lt;span style="color:#ce5c00;font-weight:bold">...&lt;/span>
 &lt;span style="color:#000;font-weight:bold">}&lt;/span>
-&lt;/code>&lt;/pre>&lt;/div>&lt;p>生成代码中也做相应改造：&lt;/p>
+&lt;/code>&lt;/pre>&lt;/div>&lt;ul>
+&lt;li>生成代码中也做相应改造：&lt;/li>
+&lt;/ul>
 &lt;div class="highlight">&lt;pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-go" data-lang="go">&lt;span style="color:#204a87;font-weight:bold">func&lt;/span> &lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">p&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">*&lt;/span>&lt;span style="color:#000">Demo&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#000">BLength&lt;/span>&lt;span style="color:#000;font-weight:bold">()&lt;/span> &lt;span style="color:#204a87;font-weight:bold">int&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>
 &lt;span style="color:#000">l&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">:=&lt;/span> &lt;span style="color:#0000cf;font-weight:bold">0&lt;/span>
 &lt;span style="color:#000">l&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">+=&lt;/span> &lt;span style="color:#000">bthrift&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">Binary&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">StructBeginLength&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#4e9a06">&amp;#34;Demo&amp;#34;&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span>
@@ -299,7 +432,7 @@
 &lt;p>公司内广泛使用 list&amp;lt;i64/i32&amp;gt; 类型来承载 ID 列表，并且 list&amp;lt;i64/i32&amp;gt; 的编码方式十分符合向量化的规律，于是我们用了 SIMD 来优化 list&amp;lt;i64/i32&amp;gt; 的编码过程。&lt;/p>
 &lt;p>我们使用了 avx2，优化后的结果比较显著，在大数据量下针对 i64 可以提升 6 倍性能，针对 i32 可以提升 12 倍性能；在小数据量下提升更明显，针对 i64 可以提升 10 倍，针对 i32 可以提升 20 倍。&lt;/p>
 &lt;h4 id="减少函数调用">减少函数调用&lt;/h4>
-&lt;h5 id="inline">inline&lt;/h5>
+&lt;p>&lt;strong>inline&lt;/strong>&lt;/p>
 &lt;p>inline 是在编译期间将一个函数调用原地展开，替换成这个函数的实现，它可以减少函数调用的开销以提高程序的性能。&lt;/p>
 &lt;p>在 Go 中并不是所有函数都能 inline，使用参数-gflags=&amp;quot;-m&amp;quot;运行进程，可显示被 inline 的函数。以下几种情况无法内联：&lt;/p>
 &lt;ul>
@@ -354,7 +487,7 @@ go &lt;span style="color:#204a87">test&lt;/span> -gcflags&lt;span style="color:#
 &lt;h3 id="测试结果">测试结果&lt;/h3>
 &lt;p>我们构建了基准测试来对比优化前后的性能，下面是测试结果。&lt;/p>
 &lt;p>环境：Go 1.13.5 darwin/amd64 on a 2.5 GHz Intel Core i7 16GB&lt;/p>
-&lt;h4 id="小包">小包&lt;/h4>
+&lt;p>&lt;strong>小包&lt;/strong>&lt;/p>
 &lt;p>data size: 20KB&lt;/p>
 &lt;table>
 &lt;thead>
@@ -404,7 +537,7 @@ go &lt;span style="color:#204a87">test&lt;/span> -gcflags&lt;span style="color:#
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;h4 id="大包">大包&lt;/h4>
+&lt;p>&lt;strong>大包&lt;/strong>&lt;/p>
 &lt;p>data size: 6MB&lt;/p>
 &lt;table>
 &lt;thead>
@@ -565,8 +698,7 @@ go &lt;span style="color:#204a87">test&lt;/span> -gcflags&lt;span style="color:#
 &lt;li>
 &lt;p>Cap&amp;rsquo;n Proto 的 Binary Format 是针对无拷贝序列化场景专门设计的，虽然每次 Get 时都会进行一次解码，但是解码代价非常小。而 Thrift 的协议（以 Binary 为例），没有类似于 pointer 的机制，当存在多个不定大小字段或者存在嵌套时，必须顺序解析而无法直接通过计算偏移拿到字段数据所在的位置，而每次 Get 都进行顺序解析的代价过于高昂。&lt;/p>
 &lt;ul>
-&lt;li>解决方案：我们在表示结构体的时候，除了记录结构体的 buffer 节点，还加了一个索引，里面记录了每个不定大小字段开始的 buffer 节点的指针。
-下面是目前的无拷贝序列化方案与 FastRead/Write，在 4 核下的极限性能对比测试：&lt;/li>
+&lt;li>解决方案：我们在表示结构体的时候，除了记录结构体的 buffer 节点，还加了一个索引，里面记录了每个不定大小字段开始的 buffer 节点的指针。下面是目前的无拷贝序列化方案与 FastRead/Write，在 4 核下的极限性能对比测试：&lt;/li>
 &lt;/ul>
 &lt;/li>
 &lt;/ul>
@@ -713,148 +845,8 @@ go &lt;span style="color:#204a87">test&lt;/span> -gcflags&lt;span style="color:#
 &lt;p>&lt;a href="https://capnproto.org/">https://capnproto.org/&lt;/a>&lt;/p>
 &lt;/li>
 &lt;li>
-&lt;p>&lt;a href="https://software.intel.com/content/www/us/en/develop/documentation/cpp-compiler-developer-guide-and-reference/top/compiler-reference/intrinsics/intrinsics-for-intel-advanced-vector-extensions-2/intrinsics-for-shuffle-operations-1/mm256-shuffle-epi8.html">https://software.intel.com/content/www/us/en/develop/documentation/cpp-compiler-developer-guide-and-reference/top/compiler-reference/intrinsics/intrinsics-for-intel-advanced-vector-extensions-2/intrinsics-for-shuffle-operations-1/mm256-shuffle-epi8.html&lt;/a>&lt;/p>
+&lt;p>&lt;a href="https://software.intel.com/content/www/us/en/develop/documentation/cpp-compiler-developer-guide-and-reference/top/compiler-reference/intrinsics/intrinsics-for-intel-advanced-vector-extensions-2/intrinsics-for-shuffle-operations-1/mm256-shuffle-epi8.html">Intel® C++ Compiler Classic Developer Guide and Reference&lt;/a>&lt;/p>
 &lt;/li>
-&lt;/ul></description></item><item><title>Blog: 字节跳动在 Go 网络库上的实践</title><link>/zh/blog/2021/10/09/%E5%AD%97%E8%8A%82%E8%B7%B3%E5%8A%A8%E5%9C%A8-go-%E7%BD%91%E7%BB%9C%E5%BA%93%E4%B8%8A%E7%9A%84%E5%AE%9E%E8%B7%B5/</link><pubDate>Sat, 09 Oct 2021 00:00:00 +0000</pubDate><guid>/zh/blog/2021/10/09/%E5%AD%97%E8%8A%82%E8%B7%B3%E5%8A%A8%E5%9C%A8-go-%E7%BD%91%E7%BB%9C%E5%BA%93%E4%B8%8A%E7%9A%84%E5%AE%9E%E8%B7%B5/</guid><description>
-&lt;blockquote>
-&lt;p>本文选自“字节跳动基础架构实践”系列文章。&lt;/p>
-&lt;p>“字节跳动基础架构实践”系列文章是由字节跳动基础架构部门各技术团队及专家倾力打造的技术干货内容，和大家分享团队在基础架构发展和演进过程中的实践经验与教训，与各位技术同学一起交流成长。&lt;/p>
-&lt;p>RPC 框架作为研发体系中重要的一环，承载了几乎所有的服务流量。本文将简单介绍字节跳动自研网络库 netpoll 的设计及实践；以及我们实际遇到的问题和解决思路，希望能为大家提供一些参考。&lt;/p>
-&lt;/blockquote>
-&lt;h2 id="前言">前言&lt;/h2>
-&lt;p>字节跳动框架组主要负责公司内 RPC 框架的开发与维护。RPC 框架作为研发体系中重要的一环，承载了几乎所有的服务流量。随着公司内 Go 语言使用越来越广，业务对框架的要求越来越高，而 Go 原生 net 网络库却无法提供足够的性能和控制力，如无法感知连接状态、连接数量多导致利用率低、无法控制协程数量等。为了能够获取对于网络层的完全控制权，同时先于业务做一些探索并最终赋能业务，框架组推出了全新的基于 epoll 的自研网络库 —— netpoll，并基于其之上开发了字节内新一代 Golang 框架 Kitex。&lt;/p>
-&lt;p>由于 epoll 原理已有较多文章描述，本文将仅简单介绍 netpoll 的设计；随后，我们会尝试梳理一下我们基于 netpoll 所做的一些实践；最后，我们将分享一个我们遇到的问题，以及我们解决的思路。同时，欢迎对于 Go 语言以及框架感兴趣的同学加入我们！&lt;/p>
-&lt;h2 id="新型网络库设计">新型网络库设计&lt;/h2>
-&lt;h3 id="reactor---事件监听和调度核心">Reactor - 事件监听和调度核心&lt;/h3>
-&lt;p>netpoll 核心是 Reactor 事件监听调度器，主要功能为使用 epoll 监听连接的文件描述符（fd），通过回调机制触发连接上的 读、写、关闭 三种事件。&lt;br>
-&lt;br/>
-&lt;img src="/img/blog/bytedance_gonet_practice_img/reactor.png" alt="image">&lt;/p>
-&lt;h3 id="server---主从-reactor-实现">Server - 主从 Reactor 实现&lt;/h3>
-&lt;p>netpoll 将 Reactor 以 1:N 的形式组合成主从模式。&lt;/p>
-&lt;ol>
-&lt;li>MainReactor 主要管理 Listener，负责监听端口，建立新连接；&lt;/li>
-&lt;li>SubReactor 负责管理 Connection，监听分配到的所有连接，并将所有触发的事件提交到协程池里进行处理。&lt;/li>
-&lt;li>netpoll 在 I/O Task 中引入了主动的内存管理，向上层提供 NoCopy 的调用接口，由此支持 NoCopy RPC。&lt;/li>
-&lt;li>使用协程池集中处理 I/O Task，减少 goroutine 数量和调度开销。&lt;br>
-&lt;br/>
-&lt;img src="/img/blog/bytedance_gonet_practice_img/server_reactor.png" alt="image">&lt;/li>
-&lt;/ol>
-&lt;h3 id="client---共享-reactor-能力">Client - 共享 Reactor 能力&lt;/h3>
-&lt;p>client 端和 server 端共享 SubReactor，netpoll 同样实现了 dialer，提供创建连接的能力。client 端使用上和 net.Conn 相似，netpoll 提供了 write -&amp;gt; wait read callback 的底层支持。&lt;br>
-&lt;br/>
-&lt;img src="/img/blog/bytedance_gonet_practice_img/client_reactor.png" alt="image">&lt;/p>
-&lt;h2 id="nocopy-buffer">Nocopy Buffer&lt;/h2>
-&lt;h3 id="为什么需要-nocopy-buffer-">为什么需要 Nocopy Buffer ?&lt;/h3>
-&lt;p>在上述提及的 Reactor 和 I/O Task 设计中，epoll 的触发方式会影响 I/O 和 buffer 的设计，大体来说分为两种方式：&lt;/p>
-&lt;p>采用水平触发(LT)，则需要同步的在事件触发后主动完成 I/O，并向上层代码直接提供 buffer。
-采用边沿触发(ET)，可选择只管理事件通知(如 go net 设计)，由上层代码完成 I/O 并管理 buffer。
-两种方式各有优缺，netpoll 采用前者策略，水平触发时效性更好，容错率高，主动 I/O 可以集中内存使用和管理，提供 nocopy 操作并减少 GC。事实上一些热门开源网络库也是采用方式一的设计，如 easygo、evio、gnet 等。&lt;/p>
-&lt;p>但使用 LT 也带来另一个问题，即底层主动 I/O 和上层代码并发操作 buffer，引入额外的并发开销。比如：I/O 读数据写 buffer 和上层代码读 buffer 存在并发读写，反之亦然。为了保证数据正确性，同时不引入锁竞争，现有的开源网络库通常采取 同步处理 buffer(easygo, evio) 或者将 buffer 再 copy 一份提供给上层代码(gnet) 等方式，均不适合业务处理或存在 copy 开销。&lt;/p>
-&lt;p>另一方面，常见的 bytes、bufio、ringbuffer 等 buffer 库，均存在 growth 需要 copy 原数组数据，以及只能扩容无法缩容，占用大量内存等问题。因此我们希望引入一种新的 Buffer 形式，一举解决上述两方面的问题。&lt;/p>
-&lt;h3 id="nocopy-buffer-设计和优势">Nocopy Buffer 设计和优势&lt;/h3>
-&lt;p>Nocopy Buffer 基于链表数组实现，如下图所示，我们将 []byte 数组抽象为 block，并以链表拼接的形式将 block 组合为 Nocopy Buffer，同时引入了引用计数、nocopy API 和对象池。&lt;br>
-&lt;br/>
-&lt;img src="/img/blog/bytedance_gonet_practice_img/buffer.png" alt="image">&lt;br>
-&lt;br/>
-Nocopy Buffer 相比常见的 bytes、bufio、ringbuffer 等有以下优势：&lt;/p>
-&lt;ol>
-&lt;li>读写并行无锁，支持 nocopy 地流式读写
-&lt;ul>
-&lt;li>读写分别操作头尾指针，相互不干扰。&lt;/li>
-&lt;/ul>
-&lt;/li>
-&lt;li>高效扩缩容
-&lt;ul>
-&lt;li>扩容阶段，直接在尾指针后添加新的 block 即可，无需 copy 原数组。&lt;/li>
-&lt;li>缩容阶段，头指针会直接释放使用完毕的 block 节点，完成缩容。每个 block 都有独立的引用计数，当释放的 block 不再有引用时，主动回收 block 节点。&lt;/li>
-&lt;/ul>
-&lt;/li>
-&lt;li>灵活切片和拼接 buffer (链表特性)
-&lt;ul>
-&lt;li>支持任意读取分段(nocopy)，上层代码可以 nocopy 地并行处理数据流分段，无需关心生命周期，通过引用计数 GC。&lt;/li>
-&lt;li>支持任意拼接(nocopy)，写 buffer 支持通过 block 拼接到尾指针后的形式，无需 copy，保证数据只写一次。&lt;/li>
-&lt;/ul>
-&lt;/li>
-&lt;li>Nocopy Buffer 池化，减少 GC
-&lt;ul>
-&lt;li>将每个 []byte 数组视为 block 节点，构建对象池维护空闲 block，由此复用 block，减少内存占用和 GC。
-基于该 Nocopy Buffer，我们实现了 Nocopy Thrift，使得编解码过程内存零分配零拷贝。&lt;/li>
-&lt;/ul>
-&lt;/li>
-&lt;/ol>
-&lt;h2 id="连接多路复用">连接多路复用&lt;/h2>
-&lt;p>RPC 调用通常采用短连接或者长连接池的形式，一次调用绑定一个连接，那么当上下游规模很大的情况下，网络中存在的连接数以 MxN 的速度扩张，带来巨大的调度压力和计算开销，给服务治理造成困难。因此，我们希望引入一种 &amp;ldquo;在单一长连接上并行处理调用&amp;rdquo; 的形式，来减少网络中的连接数，这种方案即称为 &amp;ldquo;连接多路复用&amp;rdquo;。&lt;/p>
-&lt;p>当前业界也存在一些开源的连接多路复用方案，掣肘于代码层面的束缚，这些方案均需要 copy buffer 来实现数据分包和合并，导致实际性能并不理想。而上述 Nocopy Buffer 基于其灵活切片和拼接的特性，很好的支持了 nocopy 的数据分包和合并，使得实现高性能连接多路复用方案成为可能。&lt;/p>
-&lt;p>基于 netpoll 的连接多路复用设计如下图所示，我们将 Nocopy Buffer(及其分片) 抽象为虚拟连接，使得上层代码保持同 net.Conn 相同的调用体验。与此同时，在底层代码上通过协议分包将真实连接上的数据灵活的分配到虚拟连接上；或通过协议编码合并发送虚拟连接数据。&lt;br>
-&lt;br/>
-&lt;img src="/img/blog/bytedance_gonet_practice_img/client_server.png" alt="image"> &lt;br>
-&lt;br/>
-连接多路复用方案包含以下核心要素：&lt;/p>
-&lt;ol>
-&lt;li>
-&lt;p>虚拟连接&lt;/p>
-&lt;ul>
-&lt;li>实质上是 Nocopy Buffer，目的是替换真正的连接，规避内存 copy。&lt;/li>
-&lt;li>上层的业务逻辑/编解码 均在虚拟连接上完成，上层逻辑可以异步独立并行执行。&lt;/li>
-&lt;/ul>
-&lt;/li>
-&lt;li>
-&lt;p>Shared map&lt;/p>
-&lt;ul>
-&lt;li>引入分片锁来减少锁力度。&lt;/li>
-&lt;li>在调用端使用 sequence id 来标记请求，并使用分片锁存储 id 对应的回调。&lt;/li>
-&lt;li>在接收响应数据后，根据 sequence id 来找到对应回调并执行。&lt;/li>
-&lt;/ul>
-&lt;/li>
-&lt;li>
-&lt;p>协议分包和编码&lt;/p>
-&lt;ul>
-&lt;li>如何识别完整的请求响应数据包是连接多路复用方案可行的关键，因此需要引入协议。&lt;/li>
-&lt;li>这里采用 thrift header protocol 协议，通过消息头判断数据包完整性，通过 sequence id 标记请求和响应的对应关系。&lt;/li>
-&lt;/ul>
-&lt;/li>
-&lt;/ol>
-&lt;h2 id="zerocopy">ZeroCopy&lt;/h2>
-&lt;p>这里所说的 ZeroCopy，指的是 Linux 所提供的 ZeroCopy 的能力。上一章中我们说了业务层的零拷贝，而众所周知，当我们调用 sendmsg 系统调用发包的时候，实际上仍然是会产生一次数据的拷贝的，并且在大包场景下这个拷贝的消耗非常明显。以 100M 为例，perf 可以看到如下结果： &lt;br/>&lt;br>
-&lt;img src="/img/blog/bytedance_gonet_practice_img/perf.png" alt="image">&lt;br>
-&lt;br/>
-这还仅仅是普通 tcp 发包的占用，在我们的场景下，大部分服务都会接入 Service Mesh，所以在一次发包中，一共会有 3 次拷贝：业务进程到内核、内核到 sidecar、sidecar 再到内核。这使得有大包需求的业务，拷贝所导致的 cpu 占用会特别明显，如下图：&lt;br>
-&lt;br/>
-&lt;img src="/img/blog/bytedance_gonet_practice_img/cpu.png" alt="image">&lt;br>
-&lt;br/>
-为了解决这个问题，我们选择了使用 Linux 提供的 ZeroCopy API（在 4.14 以后支持 send；5.4 以后支持 receive）。但是这引入了一个额外的工程问题：ZeroCopy send API 和原先调用方式不兼容，无法很好地共存。这里简单介绍一下 ZeroCopy send 的工作方式：业务进程调用 sendmsg 之后，sendmsg 会记录下 iovec 的地址并立即返回，这时候业务进程不能释放这段内存，需要通过 epoll 等待内核回调一个信号表明某段 iovec 已经发送成功之后才能释放。由于我们并不希望更改业务方的使用方法，需要对上层提供同步收发的接口，所以很难基于现有的 API 同时提供 ZeroCopy 和非 ZeroCopy 的抽象；而由于 ZeroCopy 在小包场景下是有性能损耗的，所以也不能将这个作为默认的选项。&lt;/p>
-&lt;p>于是，字节跳动框架组和字节跳动内核组合作，由内核组提供了同步的接口：当调用 sendmsg 的时候，内核会监听并拦截内核原先给业务的回调，并且在回调完成后才会让 sendmsg 返回。这使得我们无需更改原有模型，可以很方便地接入 ZeroCopy send。同时，字节跳动内核组还实现了基于 unix domain socket 的 ZeroCopy，可以使得业务进程与 Mesh sidecar 之间的通信也达到零拷贝。&lt;/p>
-&lt;p>在使用了 ZeroCopy send 后，perf 可以看到内核不再有 copy 的占用：&lt;br>
-&lt;br/>
-&lt;img src="/img/blog/bytedance_gonet_practice_img/perf2.png" alt="image">&lt;br>
-&lt;br/>
-从 cpu 占用数值上看，大包场景下 ZeroCopy 能够比非 ZeroCopy 节省一半的 cpu。&lt;/p>
-&lt;h2 id="go-调度导致的延迟问题分享">Go 调度导致的延迟问题分享&lt;/h2>
-&lt;p>在我们实践过程中，发现我们新写的 netpoll 虽然在 avg 延迟上表现胜于 Go 原生的 net 库，但是在 p99 和 max 延迟上要普遍略高于 Go 原生的 net 库，并且尖刺也会更加明显，如下图（Go 1.13，蓝色为 netpoll + 多路复用，绿色为 netpoll + 长连接，黄色为 net 库 + 长连接）：&lt;br>
-&lt;br/>
-&lt;img src="/img/blog/bytedance_gonet_practice_img/delay.png" alt="image">&lt;br>
-&lt;br/>
-我们尝试了很多种办法去优化，但是收效甚微。最终，我们定位出这个延迟并非是由于 netpoll 本身的开销导致的，而是由于 go 的调度导致的，比如说：&lt;/p>
-&lt;ol>
-&lt;li>由于在 netpoll 中，SubReactor 本身也是一个 goroutine，受调度影响，不能保证 EpollWait 回调之后马上执行，所以这一块会有延迟；&lt;/li>
-&lt;li>同时，由于用来处理 I/O 事件的 SubReactor 和用来处理连接监听的 MainReactor 本身也是 goroutine，所以实际上很难保证在多核情况之下，这些 Reactor 能并行执行；甚至在最极端情况之下，可能这些 Reactor 会挂在同一个 P 下，最终变成了串行执行，无法充分利用多核优势；&lt;/li>
-&lt;li>由于 EpollWait 回调之后，SubReactor 内是串行处理 I/O 事件的，导致排在最后的事件可能会有长尾问题；&lt;/li>
-&lt;li>在连接多路复用场景下，由于每个连接绑定了一个 SubReactor，故延迟完全取决于这个 SubReactor 的调度，导致尖刺会更加明显。
-由于 Go 在 runtime 中对于 net 库有做特殊优化，所以 net 库不会有以上情况；同时 net 库是 goroutine-per-connection 的模型，所以能确保请求能并行执行而不会相互影响。&lt;/li>
-&lt;/ol>
-&lt;p>对于以上这个问题，我们目前解决的思路有两个：&lt;/p>
-&lt;ol>
-&lt;li>修改 Go runtime 源码，在 Go runtime 中注册一个回调，每次调度时调用 EpollWait，把获取到的 fd 传递给回调执行；&lt;/li>
-&lt;li>与字节跳动内核组合作，支持同时批量读/写多个连接，解决串行问题。另外，经过我们的测试，Go 1.14 能够使得延迟略有降低同时更加平稳，但是所能达到的极限 QPS 更低。希望我们的思路能够给业界同样遇到此问题的同学提供一些参考。&lt;/li>
-&lt;/ol>
-&lt;h2 id="后记">后记&lt;/h2>
-&lt;p>希望以上的分享能够对社区有所帮助。同时，我们也在加速建设 netpoll 以及基于 netpoll 的新框架 Kitex。欢迎各位感兴趣的同学加入我们，共同建设 Go 语言生态！&lt;/p>
-&lt;h2 id="参考资料">参考资料&lt;/h2>
-&lt;ul>
-&lt;li>&lt;a href="http://man7.org/linux/man-pages/man7/epoll.7.html">http://man7.org/linux/man-pages/man7/epoll.7.html&lt;/a>&lt;/li>
-&lt;li>&lt;a href="https://golang.org/src/runtime/proc.go">https://golang.org/src/runtime/proc.go&lt;/a>&lt;/li>
-&lt;li>&lt;a href="https://github.com/panjf2000/gnet">https://github.com/panjf2000/gnet&lt;/a>&lt;/li>
-&lt;li>&lt;a href="https://github.com/tidwall/evio">https://github.com/tidwall/evio&lt;/a>&lt;/li>
 &lt;/ul></description></item><item><title>Blog: Netpoll v0.0.4 版本发布</title><link>/zh/blog/2021/09/16/netpoll-v0.0.4-%E7%89%88%E6%9C%AC%E5%8F%91%E5%B8%83/</link><pubDate>Thu, 16 Sep 2021 00:00:00 +0000</pubDate><guid>/zh/blog/2021/09/16/netpoll-v0.0.4-%E7%89%88%E6%9C%AC%E5%8F%91%E5%B8%83/</guid><description>
 &lt;h2 id="优化">优化:&lt;/h2>
 &lt;ul>
@@ -870,43 +862,80 @@ Nocopy Buffer 相比常见的 bytes、bufio、ringbuffer 等有以下优势：&l
 &lt;h2 id="bug-修复">Bug 修复:&lt;/h2>
 &lt;ul>
 &lt;li>设置剩余待读取大小。&lt;/li>
-&lt;/ul></description></item><item><title>Blog: Kitex v0.0.5 版本发布</title><link>/zh/blog/2021/09/26/kitex-v0.0.5-%E7%89%88%E6%9C%AC%E5%8F%91%E5%B8%83/</link><pubDate>Sun, 26 Sep 2021 00:00:00 +0000</pubDate><guid>/zh/blog/2021/09/26/kitex-v0.0.5-%E7%89%88%E6%9C%AC%E5%8F%91%E5%B8%83/</guid><description>
-&lt;h2 id="功能">功能:&lt;/h2>
+&lt;/ul></description></item><item><title>Blog: 字节跳动开源内部微服务中间件 CloudWeGo</title><link>/zh/blog/2021/09/07/%E5%AD%97%E8%8A%82%E8%B7%B3%E5%8A%A8%E5%BC%80%E6%BA%90%E5%86%85%E9%83%A8%E5%BE%AE%E6%9C%8D%E5%8A%A1%E4%B8%AD%E9%97%B4%E4%BB%B6-cloudwego/</link><pubDate>Tue, 07 Sep 2021 00:00:00 +0000</pubDate><guid>/zh/blog/2021/09/07/%E5%AD%97%E8%8A%82%E8%B7%B3%E5%8A%A8%E5%BC%80%E6%BA%90%E5%86%85%E9%83%A8%E5%BE%AE%E6%9C%8D%E5%8A%A1%E4%B8%AD%E9%97%B4%E4%BB%B6-cloudwego/</guid><description>
+&lt;h2 id="开源背景">开源背景&lt;/h2>
+&lt;p>&lt;a href="https://github.com/cloudwego">CloudWeGo&lt;/a> 是一套由字节跳动开源的、以 Go 语言为核心的、可快速构建企业级云原生架构的中间件集合，专注于微服务通信与治理，具备高性能、可扩展、高可靠的特点。&lt;/p>
+&lt;p>字节跳动内部使用 Golang 作为主要的业务开发语言，我们支持着数万个 Golang 微服务的可靠通信，经过数量众多的微服务和海量流量的验证，我们已经有了较为成熟的微服务最佳实践，于是考虑将内部的实践开源出去丰富社区生态。但微服务相关的项目较多，每个项目单独开源对外部用户并不友好，为了更好地让大家聚焦于微服务，我们以 CloudWeGo 作为项目名，逐步将内部微服务体系的项目开源，内外统一使用开源库，各项目以开源库为主进行迭代。&lt;/p>
+&lt;p>内外维护一套代码，统一迭代演进，是我们开源前明确的原则，但毕竟涉及到代码库的调整，我们要保证内部用户尽可能无感知的迁移到开源库，本着对内部和开源用户负责的态度，我们要先确认内部可以平滑过渡，所以开源时并未对外宣传。让我们欣慰的是，在未宣传的情况下，一个月内 Kitex 收获了 1.2k stars，Netpoll 收获了700+ stars。&lt;/p>
+&lt;p>CloudWeGo 不仅仅是一个对外的开源项目，也是一个真实的超大规模企业级实践项目。&lt;/p>
+&lt;p>我们希望通过 CloudWeGo 丰富云原生社区的 Golang 产品体系，助力其他企业快速构建云原生架构，也希望吸引外部开发者共建，促进面向多元场景支持的演进，丰富产品能力。&lt;/p>
+&lt;p>因为 CloudWeGo 下的项目会依赖很多内部的基础工具库，我们也推动将内部常用的 Golang 基础工具库开源出去，统一在 &lt;a href="https://github.com/bytedance/gopkg">bytedance/gopkg&lt;/a> 维护。&lt;/p>
+&lt;h2 id="cloudwego-开源项目">CloudWeGo 开源项目&lt;/h2>
+&lt;p>CloudWeGo 第一批以 Kitex RPC 框架和 Netpoll 网络库为主开源四个项目。Kitex 和 Netpoll 开源前我们发布过两篇文章 &lt;a href="https://mp.weixin.qq.com/s/Xoaoiotl7ZQoG2iXo9_DWg">字节跳动 Go RPC 框架 Kitex 性能优化实践&lt;/a> 和 &lt;a href="https://mp.weixin.qq.com/s?__biz=MzI1MzYzMjE0MQ==&amp;amp;mid=2247485756&amp;amp;idx=1&amp;amp;sn=4d2712e4bfb9be27a790fa15159a7be1&amp;amp;chksm=e9d0c2dedea74bc8179af39888a5b2b99266587cad32744ad11092b91ec2e2babc74e69090e6&amp;amp;scene=21#wechat_redirect">字节跳动在 Go 网络库上的实践&lt;/a> 分享我们的实践，文章发布后大家都在关注我们什么时候开源，因为我们希望将成熟的实践开源出去，所以没有过早的推动开源。&lt;/p>
+&lt;h3 id="kitex">Kitex&lt;/h3>
+&lt;p>Kitex 是字节跳动内部的 Golang 微服务 RPC 框架，具有高性能、强可扩展的主要特点。在 Kitex 之前内部的 Golang 框架是 Kite，但 Kite 与 Thrift 深度耦合、生成代码逻辑重，很难从网络模型或编解码层面改造优化，继续支持新特性势必会造成代码越发臃肿迭代受阻问题，于是我们针对曾经的痛点设计了新的框架 Kitex。虽然 Kitex 是新框架，但已经在线上应用一年多，目前字节内部超过 50% 的 Golang 微服务使用 Kitex。&lt;/p>
+&lt;p>以下简述 Kitex 的一些特性：&lt;/p>
 &lt;ul>
-&lt;li>增加默认的 ErrorHandler 封装 Error（用户指定会被覆盖）。&lt;/li>
-&lt;li>metainfo 支持反向传递。&lt;/li>
-&lt;li>支持了 JSON 泛化调用，使用指南可参考：&lt;a href="https://www.cloudwego.io/zh/docs/tutorials/advanced-feature/generic_call/">Kitex 泛化调用使用指南&lt;/a>。&lt;/li>
+&lt;li>
+&lt;p>高性能：网络传输模块 Kitex 默认集成了自研的网络库 Netpoll，性能相较使用 go net 有显著优势；除了网络库带来的性能收益，Kitex 对 Thrift 编解码也做了优化，详见 &lt;a href="https://mp.weixin.qq.com/s/Xoaoiotl7ZQoG2iXo9_DWg">优化实践&lt;/a>。关于性能数据可参考 &lt;a href="https://github.com/cloudwego/kitex-benchmark">kitex-benchmark&lt;/a>。&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>扩展性：Kitex 设计上做了模块划分，提供了较多的扩展接口以及默认的扩展实现，使用者也可以根据需要自行定制扩展，更多扩展能力参见 &lt;a href="https://www.cloudwego.io/zh/docs/tutorials/framework-exten/">文档&lt;/a>。Kitex 也并未耦合 Netpoll，开发者也可以选择其它网络库扩展使用。&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>消息协议：RPC 消息协议默认支持 Thrift、Kitex Protobuf、gRPC。Thrift 支持 Buffered 和 Framed 二进制协议；Kitex Protobuf 是 Kitex 自定义的 Protobuf 消息协议，协议格式类似 Thrift；gRPC 是对 gRPC 消息协议的支持，可以与 gRPC 互通。除此之外，使用者也可以扩展自己的消息协议。&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>传输协议：传输协议封装消息协议进行 RPC 互通，传输协议可以额外透传元信息，用于服务治理，Kitex 支持的传输协议有 TTHeader、HTTP2。TTHeader 可以和 Thrift、Kitex Protobuf 结合使用；HTTP2 目前主要是结合 gRPC 协议使用，后续也会支持 Thrift。&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>多消息类型：支持 PingPong、Oneway、双向 Streaming。其中 Oneway 目前只对 Thrift 协议支持，双向 Streaming 只对 gRPC 支持，后续会考虑支持 Thrift 的双向 Streaming。&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>服务治理：支持服务注册/发现、负载均衡、熔断、限流、重试、监控、链路跟踪、日志、诊断等服务治理模块，大部分均已提供默认扩展，使用者可选择集成。&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Kitex 内置代码生成工具，可支持生成 Thrift、Protobuf 以及脚手架代码。原生的 Thrift 代码由本次一起开源的 Thriftgo 生成，Kitex 对 Thrift 的优化由 Kitex Tool 作为插件支持。Protobuf 代码由 Kitex 作为官方 protoc 插件生成 ，目前暂未单独支持 Protobuf IDL 的解析和代码生成。&lt;/p>
+&lt;/li>
 &lt;/ul>
-&lt;h2 id="优化">优化:&lt;/h2>
+&lt;h3 id="netpoll">Netpoll&lt;/h3>
+&lt;p>Netpoll 是字节跳动内部的 Golang 高性能、I/O 非阻塞的网络库，专注于 RPC 场景。&lt;/p>
+&lt;p>RPC 通常有较重的处理逻辑（业务逻辑、编解码），耗时长，不能像 Redis 一样采用串行处理(必须异步)。而 Go 的标准库 net 设计了 BIO(Blocking I/O) 模式的 API，为了保证异步处理，RPC 框架设计上需要为每个连接都分配一个 goroutine，这在空闲连接较多时，产生大量的空闲 goroutine，增加调度开销。此外，&lt;a href="https://github.com/golang/go/blob/master/src/net/net.go">net.Conn&lt;/a> 没有提供检查连接活性的 API，很难设计出高效的连接池，池中的失效连接无法及时清理，复用低效。&lt;/p>
+&lt;p>开源社区目前缺少专注于 RPC 方案的 Go 网络库。类似的项目如：&lt;a href="https://github.com/tidwall/evio">evio&lt;/a> , &lt;a href="https://github.com/panjf2000/gnet">gnet&lt;/a> 等，均面向 Redis, Haproxy 这样的场景。&lt;/p>
+&lt;p>因此 Netpoll 应运而生，它借鉴了 evio 和 Netty 的优秀设计，具有出色的 &lt;a href="https://github.com/cloudwego/netpoll/blob/main/README_CN.md#%e6%80%a7%e8%83%bd">性能&lt;/a>，更适用于微服务架构。 同时，Netpoll 还提供了一些 &lt;a href="https://github.com/cloudwego/netpoll/blob/main/README_CN.md#%e7%89%b9%e6%80%a7">特性&lt;/a>，推荐在 RPC 框架中作为底层网络库。&lt;/p>
+&lt;h3 id="thriftgo">Thriftgo&lt;/h3>
+&lt;p>Thriftgo 是 Go 语言实现的 Thrift IDL 解析和代码生成器，支持完善的 Thrift IDL 语法和语义检查，相较 Apache Thrift 官方的 Golang 生成代码，Thriftgo 做了一些问题修复且支持插件机制，用户可根据需求自定义生成代码。&lt;/p>
+&lt;p>Kitex 的代码生成工具就是 Thriftgo 的插件，CloudWeGo 近期也会开源另一个 Thriftgo 的插件 thrift-gen-validator，支持 IDL Validator，用于字段值校验，解决开发者需要自行实现代码校验逻辑的负担，弥补 Thrift 缺失的能力。&lt;/p>
+&lt;p>Thriftgo 目前虽然仅支持生成 Golang Thrift 代码，但其定位是可支持各语言的 Thrift 代码生成，未来如果有需求，我们也会考虑生成其他语言的代码，同时我们也将尝试将其回馈至 Apache Thrift 社区。&lt;/p>
+&lt;h3 id="netpoll-http2">Netpoll-http2&lt;/h3>
+&lt;p>Netpoll-http2 是基于 Golang 标准库 golang.org/x/net/http2 的源码替换 go net 为 Netpoll，目前用于 Kitex 对 gRPC 协议的支持，对 HTTP2 有需求的外部开发者也可以使用此库。&lt;/p>
+&lt;h2 id="内外版本维护">内外版本维护&lt;/h2>
+&lt;p>完整的微服务体系离不开基础的云生态，无论在公有云、私有云还是基于自己的基础设施开发微服务，都需要搭建额外的服务以很好的支持微服务的治理，比如治理平台、监控、链路跟踪、注册/发现、配置中心、服务网格等，而且还存在一些定制的规范。字节跳动自然也有完善的内部服务支持微服务体系，但这些服务短期还无法开源，那 CloudWeGo 如何内外维护一套代码，统一迭代呢？&lt;/p>
+&lt;p>CloudWeGo 下与内部生态没有耦合的项目，如 Netpoll，直接迁移到开源库，内部依赖调整为开源库。&lt;/p>
+&lt;p>而需要集成治理能力融入微服务体系的 Kitex 则基于其扩展性，将内外部的代码做了拆分，Kitex 的核心代码迁移到开源库，内部库封装一层壳保证内部用户无感知升级。集成内部治理特性的模块则作为 Kitex 的扩展保留在内部库，同时对于一些新的特性也会优先在内部库支持，稳定后迁移到开源库。&lt;/p>
+&lt;p>对于使用 Kitex 的开源用户，同样可以对 Kitex 进行扩展，将 Kitex 融入自己的微服务体系中，也希望开发者能贡献自己的扩展到 &lt;a href="https://github.com/kitex-contrib">kitex-contrib&lt;/a>，为更多用户提供便利。&lt;/p>
+&lt;h2 id="未来展望">未来展望&lt;/h2>
+&lt;p>&lt;strong>继续开源其他内部项目&lt;/strong>&lt;/p>
 &lt;ul>
-&lt;li>多路复用场景下使用了新的 netpoll API 来改善吞吐和延迟。&lt;/li>
-&lt;li>多路复用场景下支持 metainfo 的正向和反向传递。&lt;/li>
-&lt;li>Client 会在需要的时候默认使用 RPCTimeout 中间件。&lt;/li>
-&lt;li>连接池配置增加全局空闲连接和单实例空闲连接合法性校验。&lt;/li>
-&lt;li>当更新 QPS 最大限制时会重置计数器。&lt;/li>
-&lt;li>减小 QPS 限流的误差。&lt;/li>
+&lt;li>我们会继续开源其他内部项目，如 HTTP 框架 Hertz、基于共享内存的 IPC 通信库 ShmIPC 等，提供更多场景的微服务需求支持。&lt;/li>
 &lt;/ul>
-&lt;h2 id="bug-修复">Bug 修复:&lt;/h2>
+&lt;p>&lt;strong>逐步开源经验证的、稳定的特性&lt;/strong>&lt;/p>
 &lt;ul>
-&lt;li>修复 WithExitWaitTime 没有正确设置退出等待时间的问题。&lt;/li>
-&lt;li>修复更新 QPS 限制器更新间隔时，协程泄漏的问题。&lt;/li>
-&lt;li>服务注册使用真实监听的地址。&lt;/li>
+&lt;li>CloudWeGo 的主要项目均为字节内部微服务提供支持，新的特性通常会在内部验证，相对成熟后我们会逐步开源出去，比如对 ShmIPC 的集成、无序列化、无生成代码的支持等等。&lt;/li>
 &lt;/ul>
-&lt;h2 id="工具">工具:&lt;/h2>
+&lt;p>&lt;strong>结合内外部用户需求，持续迭代&lt;/strong>&lt;/p>
 &lt;ul>
-&lt;li>修复了当 protobuf 文件只有 unary 方法时，生成出错的问题。&lt;/li>
+&lt;li>
+&lt;p>CloudWeGo 开源后除向内部提供支持外，我们也希望 CloudWeGo 能为外部用户提供良好的支持，帮助大家快速搭建自己的微服务体系，所以我们会面向内外部用户迭代。&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>就开源一个月的反馈看，大家对 Protobuf 的诉求较为强烈。坦诚来说 Kitex 虽然支持多协议，但字节内部 RPC 通信协议是 Thrift，对 Protobuf 无论是 Kitex Protobuf 还是兼容 gRPC 更多的是支持少部分内部用户的需求，所以暂时未开展性能优化，生成代码也是直接使用 Protobuf 官方的二进制（gogo/protobuf 是基于生成代码优化 Protobuf 序列化性能的优秀开源库，但很遗憾该库目前是停止维护状态，所以 Kitex 并未选择 gogo），但鉴于大家强烈的诉求，我们会计划开展 Kitex 对 Protobuf 支持的性能优化。&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>欢迎大家向 CloudWeGo 提交 issue 和 PR 共建 CloudWeGo，我们诚心期待更多的开发者加入，也期待 CloudWeGo 助力越来越多的企业快速构建云原生架构。如果企业客户想内部试用，我们可以排期提供专项技术支持和交流，欢迎入群咨询。&lt;/p>
+&lt;/li>
 &lt;/ul>
-&lt;h2 id="文档">文档:&lt;/h2>
-&lt;ul>
-&lt;li>提供了英文版的README和其他文档。&lt;/li>
-&lt;li>补充了泛化调用手册： &lt;a href="https://www.cloudwego.io/docs/tutorials/advanced-feature/generic_call/">English&lt;/a> | &lt;a href="https://www.cloudwego.io/zh/docs/tutorials/advanced-feature/generic_call/">中文&lt;/a>。&lt;/li>
-&lt;li>README 中增加了 landsapce 和 roadmap。&lt;/li>
-&lt;/ul>
-&lt;h2 id="依赖变化">依赖变化:&lt;/h2>
-&lt;ul>
-&lt;li>github.com/cloudwego/netpoll: v0.0.3 -&amp;gt; v0.0.4&lt;/li>
-&lt;li>github.com/bytedance/gopkg: v0.0.0-20210709064845-3c00f9323f09 -&amp;gt; v0.0.0-20210910103821-e4efae9c17c3&lt;/li>
-&lt;/ul></description></item><item><title>Blog: Kitex v0.0.4 版本发布</title><link>/zh/blog/2021/08/26/kitex-v0.0.4-%E7%89%88%E6%9C%AC%E5%8F%91%E5%B8%83/</link><pubDate>Thu, 26 Aug 2021 00:00:00 +0000</pubDate><guid>/zh/blog/2021/08/26/kitex-v0.0.4-%E7%89%88%E6%9C%AC%E5%8F%91%E5%B8%83/</guid><description>
+&lt;p>&lt;img src="/img/blog/LarkGroup.png" alt="!image">&lt;/p></description></item><item><title>Blog: Kitex v0.0.4 版本发布</title><link>/zh/blog/2021/08/26/kitex-v0.0.4-%E7%89%88%E6%9C%AC%E5%8F%91%E5%B8%83/</link><pubDate>Thu, 26 Aug 2021 00:00:00 +0000</pubDate><guid>/zh/blog/2021/08/26/kitex-v0.0.4-%E7%89%88%E6%9C%AC%E5%8F%91%E5%B8%83/</guid><description>
 &lt;h2 id="优化">优化:&lt;/h2>
 &lt;ul>
 &lt;li>transMetaHandler 在自定义 boundHandlers 之前执行，保证自定义 boundHandlers 可以拿到 RPCInfo 信息。&lt;/li>
