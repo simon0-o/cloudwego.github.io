@@ -1,4 +1,31 @@
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>CloudWeGo – CloudWeGo</title><link>/zh/</link><description>Recent content on CloudWeGo</description><generator>Hugo -- gohugo.io</generator><atom:link href="/zh/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: 字节跳动在 Go 网络库上的实践</title><link>/zh/blog/2021/10/09/%E5%AD%97%E8%8A%82%E8%B7%B3%E5%8A%A8%E5%9C%A8-go-%E7%BD%91%E7%BB%9C%E5%BA%93%E4%B8%8A%E7%9A%84%E5%AE%9E%E8%B7%B5/</link><pubDate>Sat, 09 Oct 2021 00:00:00 +0000</pubDate><guid>/zh/blog/2021/10/09/%E5%AD%97%E8%8A%82%E8%B7%B3%E5%8A%A8%E5%9C%A8-go-%E7%BD%91%E7%BB%9C%E5%BA%93%E4%B8%8A%E7%9A%84%E5%AE%9E%E8%B7%B5/</guid><description>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>CloudWeGo – CloudWeGo</title><link>/zh/</link><description>Recent content on CloudWeGo</description><generator>Hugo -- gohugo.io</generator><atom:link href="/zh/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: Kitex v0.0.8 版本发布</title><link>/zh/blog/2021/11/05/kitex-v0.0.8-%E7%89%88%E6%9C%AC%E5%8F%91%E5%B8%83/</link><pubDate>Fri, 05 Nov 2021 00:00:00 +0000</pubDate><guid>/zh/blog/2021/11/05/kitex-v0.0.8-%E7%89%88%E6%9C%AC%E5%8F%91%E5%B8%83/</guid><description>
+&lt;h2 id="功能优化">功能优化&lt;/h2>
+&lt;ul>
+&lt;li>使用分片 ring 减少连接池的锁开销。&lt;/li>
+&lt;li>装填 TTHeader 中的上游服务信息到 rpcinfo 中，用于在 decode 出错时输出来源信息。&lt;/li>
+&lt;li>Unlink uds 调整至 CreateListener 中。&lt;/li>
+&lt;li>event.go 和 ring_single.go 中的 Mutex 改为 RWMutex。&lt;/li>
+&lt;/ul>
+&lt;h2 id="问题修复">问题修复&lt;/h2>
+&lt;ul>
+&lt;li>修复 netpollmux shard index 溢出的问题。&lt;/li>
+&lt;li>移除 &lt;code>WithCircuitBreaker&lt;/code> option 里对参数的反射，避免 data-race。&lt;/li>
+&lt;li>在重试场景下， 修复 rpc finish 错误导致的小概率失败的问题，并且加上了熔断 sample 的校验。&lt;/li>
+&lt;li>修复 endpoint_test.go 中的一处单测错误。&lt;/li>
+&lt;li>修改 conn_wrapper.go 中 longconn 变量命名为 conn.。&lt;/li>
+&lt;/ul>
+&lt;h2 id="生成工具">生成工具&lt;/h2>
+&lt;ul>
+&lt;li>代码生成工具支持透传thrift-go插件参数。&lt;/li>
+&lt;/ul>
+&lt;h2 id="文档">文档&lt;/h2>
+&lt;ul>
+&lt;li>将 README 中的性能结果改为引用 kitex-benchmark 仓库的数据。&lt;/li>
+&lt;/ul>
+&lt;h2 id="依赖变化">依赖变化&lt;/h2>
+&lt;ul>
+&lt;li>github.com/tidwall/gjson: v1.8.0 -&amp;gt; v1.9.3&lt;/li>
+&lt;/ul></description></item><item><title>Blog: 字节跳动在 Go 网络库上的实践</title><link>/zh/blog/2021/10/09/%E5%AD%97%E8%8A%82%E8%B7%B3%E5%8A%A8%E5%9C%A8-go-%E7%BD%91%E7%BB%9C%E5%BA%93%E4%B8%8A%E7%9A%84%E5%AE%9E%E8%B7%B5/</link><pubDate>Sat, 09 Oct 2021 00:00:00 +0000</pubDate><guid>/zh/blog/2021/10/09/%E5%AD%97%E8%8A%82%E8%B7%B3%E5%8A%A8%E5%9C%A8-go-%E7%BD%91%E7%BB%9C%E5%BA%93%E4%B8%8A%E7%9A%84%E5%AE%9E%E8%B7%B5/</guid><description>
 &lt;blockquote>
 &lt;p>本文选自“字节跳动基础架构实践”系列文章。&lt;/p>
 &lt;p>“字节跳动基础架构实践”系列文章是由字节跳动基础架构部门各技术团队及专家倾力打造的技术干货内容，和大家分享团队在基础架构发展和演进过程中的实践经验与教训，与各位技术同学一起交流成长。&lt;/p>

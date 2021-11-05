@@ -1,4 +1,31 @@
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>CloudWeGo – CloudWeGo</title><link>/</link><description>Recent content on CloudWeGo</description><generator>Hugo -- gohugo.io</generator><atom:link href="/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: Kitex Release v0.0.5</title><link>/blog/2021/09/26/kitex-release-v0.0.5/</link><pubDate>Sun, 26 Sep 2021 00:00:00 +0000</pubDate><guid>/blog/2021/09/26/kitex-release-v0.0.5/</guid><description>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>CloudWeGo – CloudWeGo</title><link>/</link><description>Recent content on CloudWeGo</description><generator>Hugo -- gohugo.io</generator><atom:link href="/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: Kitex Release v0.0.8</title><link>/blog/2021/11/05/kitex-release-v0.0.8/</link><pubDate>Fri, 05 Nov 2021 00:00:00 +0000</pubDate><guid>/blog/2021/11/05/kitex-release-v0.0.8/</guid><description>
+&lt;h2 id="improvement">Improvement:&lt;/h2>
+&lt;ul>
+&lt;li>Use shard rings to reduce lock overhead in connpool.&lt;/li>
+&lt;li>Fill upstream information to rpcinfo from TTheader, for printing useful log when decode error happened.&lt;/li>
+&lt;li>Move unlink uds operation to CreateListener.&lt;/li>
+&lt;li>Replace sync.Mutex by sync.RWMutex of event.go and ring_single.go.&lt;/li>
+&lt;/ul>
+&lt;h2 id="bugfix">Bugfix:&lt;/h2>
+&lt;ul>
+&lt;li>Fix netpollmux shard index overflow.&lt;/li>
+&lt;li>Remove reflection of &lt;code>WithCircuitBreaker&lt;/code> option arguments to prevent data-race.&lt;/li>
+&lt;li>Fix rpc finished error may happen small probability in failure retry scenario &amp;amp;&amp;amp; add sample check for retry circuit breaking.&lt;/li>
+&lt;li>Fix a test case mistake in endpoint_test.go.&lt;/li>
+&lt;li>Modify longconn variable name to conn.&lt;/li>
+&lt;/ul>
+&lt;h2 id="tool">Tool:&lt;/h2>
+&lt;ul>
+&lt;li>Kitex codegen tool supports passing through thrift-go plugin arguments.&lt;/li>
+&lt;/ul>
+&lt;h2 id="docs">Docs:&lt;/h2>
+&lt;ul>
+&lt;li>Use a link to the the kitex-benchmark repository to replace the performance section in README.&lt;/li>
+&lt;/ul>
+&lt;h2 id="dependency-change">Dependency Change:&lt;/h2>
+&lt;ul>
+&lt;li>github.com/tidwall/gjson: v1.8.0 -&amp;gt; v1.9.3&lt;/li>
+&lt;/ul></description></item><item><title>Blog: Kitex Release v0.0.5</title><link>/blog/2021/09/26/kitex-release-v0.0.5/</link><pubDate>Sun, 26 Sep 2021 00:00:00 +0000</pubDate><guid>/blog/2021/09/26/kitex-release-v0.0.5/</guid><description>
 &lt;h2 id="feature">Feature:&lt;/h2>
 &lt;ul>
 &lt;li>Add default ErrorHandler to wrap remote error when no ErrorHandler is specified.&lt;/li>
